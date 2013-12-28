@@ -1,0 +1,4 @@
+*.[oad]
+*.pyc
+*.so
+output.root
