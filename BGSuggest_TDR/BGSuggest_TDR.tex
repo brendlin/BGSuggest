@@ -22,21 +22,46 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Scope of this document}
 
-The purpose of this document is to lay a basic foundation for a semi-automated fast-acting insulin dosage suggestion system, based on personal data collected by the Minimed Paradigm insulin pump and its associated blood glucose meter. By collecting and analyzing insulin dosages (including basal rates, food boluses and correction boluses), food intake, and other behavioral information from a specific user, the software (hereafter referred to as BGSuggest) will seek to suggest changes to the user's insulin regime in as focused a manner as possible.
+The purpose of this document is to lay a basic foundation for a semi-automated fast-acting insulin 
+dosage suggestion system, based on personal data collected by the Minimed Paradigm insulin pump and 
+its associated blood glucose meter. By collecting and analyzing insulin dosages (including basal 
+rates, food boluses and correction boluses), food intake, and other behavioral information from a 
+specific user, the software (hereafter referred to as BGSuggest) will seek to suggest changes to 
+the user's insulin regime in as focused a manner as possible.
 
-While an idealized version of the software would require no additional feedback from the user other than a dedicated log of food and insulin intake, it is expected that early versions of this software will require the user to perform certain specific tasks (such as fasting basal tests).
+While an idealized version of the software would require no additional feedback from the user other 
+than a dedicated log of food and insulin intake, it is expected that early versions of this software 
+will require the user to perform certain specific tasks (such as fasting basal tests).
 
-Furthermore, it is anticipated that the software development will proceed in stages. In order to quickly produce results, a first tool will use aggregate information to make suggestions, in a brute-force approach which ignores some nuances (Phase I). While this tool may be effective at lowering average blood sugar rates, it is susceptible to the effects of localized events, including meal carbohydrate uncertainties, exercise, and fatty meals.
+Furthermore, it is anticipated that the software development will proceed in stages. In order to 
+quickly produce results, a first tool will use aggregate information to make suggestions, in a 
+brute-force approach which ignores some nuances (Phase I). While this tool may be effective at 
+lowering average blood sugar rates, it is susceptible to the effects of localized events, including 
+meal carbohydrate uncertainties, exercise, and fatty meals.
 
-A second tool, aimed at evaluating data event-by-event, allows for more precise feedback. By analyzing data event-by-event, and incorporating meal carbohydrate estimate uncertainties, it would be able to suggest changes on an event-by-event basis, with appropriate uncertainties. The problem with this approach is that incorrect dosages can be blamed on any of three (or more) sources, and thus in a single event the data is under-constrained. The problem is resolved with three or more measurements; however, three accurate measurements within the same hour of the day is sometimes difficult, and the degree of uncertainty may be high. It is envisioned that the Phase II tool would leave these ambiguities unresolved, and up to the discretion of the user.
+A second tool, aimed at evaluating data event-by-event, allows for more precise feedback. By 
+analyzing data event-by-event, and incorporating meal carbohydrate estimate uncertainties, it would 
+be able to suggest changes on an event-by-event basis, with appropriate uncertainties. The problem 
+with this approach is that incorrect dosages can be blamed on any of three (or more) sources, and 
+thus in a single event the data is under-constrained. The problem is resolved with three or more 
+measurements; however, three accurate measurements within the same hour of the day is sometimes 
+difficult, and the degree of uncertainty may be high. It is envisioned that the Phase II tool would 
+leave these ambiguities unresolved, and up to the discretion of the user.
 
-A third tool (Phase III) would attempt to solve this problem by attempting to minimize some converging test statistic through varying the three dosage variables (basal, bolus, sensitivity). To develop this tool, some truth studies may be helpful.
+A third tool (Phase III) would attempt to solve this problem by attempting to minimize some 
+converging test statistic through varying the three dosage variables (basal, bolus, sensitivity). To 
+develop this tool, some truth studies may be helpful.
 
-Other related tools could be imagined, such as a tool to recognize trends in certain meal types (or even a particular food) and suggest changes to carbohydrate estimation. These tools would require a dedicated user whose blood sugar levels were already known to a fairly precise level, and whose carb counting techniques were well-honed.
+Other related tools could be imagined, such as a tool to recognize trends in certain meal types (or 
+even a particular food) and suggest changes to carbohydrate estimation. These tools would require a 
+dedicated user whose blood sugar levels were already known to a fairly precise level, and whose carb 
+counting techniques were well-honed.
 
-Before Phase I can begin, however, a basis of plotting and visualization techniques, as well as a system of persistified data (ntuples) must be devised (Phase 0).
+Before Phase I can begin, however, a basis of plotting and visualization techniques, as well as a 
+system of persistified data (ntuples) must be devised (Phase 0).
 
-This document will also serve as a repository of information, researched and anecdotal, related to balancing an maintaining blood sugar rates.
+This document will also serve as a repository of information, researched and anecdotal, related to 
+balancing an maintaining blood sugar rates.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -47,14 +72,16 @@ This document will also serve as a repository of information, researched and ane
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[width=4.5in]{figures/example_weekly.pdf}
-\caption{An example scatter plot, with a coarse binning underneath, highlighting general trends in blood sugar levels for one week. These plots are intended to catch large trends in insulin dosage response.}
+\caption{An example scatter plot, with a coarse binning underneath, highlighting general trends in 
+blood sugar levels for one week. These plots are intended to catch large trends in insulin dosage 
+response.}
 \label{default}
 \end{center}
 \end{figure}
 
 \subsection{Conversions, conventions and formulas}
 
-In the following, $U$ will refer to units of insulin; $S$ refers to sensitivity (in units of \sens)
+In the following, $U$ will refer to units of insulin; $S$ refers to sensitivity (in units of \sens).
 
 \begin{table}[htdp]
 \caption{Relevant Quantities}
@@ -79,7 +106,11 @@ In determining the insulin absorption function, several conditions must be met:
 	\i At $t=t_A$, all but 5\% of the insulin is absorbed.
 \end{enumerate}
 
-The last of these is chosen somewhat arbitrarily. The Minimed bolus wizard's ``active insulin time'' setting allows for seven options: 2-8 hours, in increments of 1 hour. It is not clear how Minimed defines active insulin time, but the third condition is seen as a reasonable approximation. In theory, one could determine this by reverse-engineering the ``active insulin remaining'' detail in the bolus wizard data.
+The last of these is chosen somewhat arbitrarily. The Minimed bolus wizard's ``active insulin time'' 
+setting allows for seven options: 2-8 hours, in increments of 1 hour. It is not clear how Minimed 
+defines active insulin time, but the third condition is seen as a reasonable approximation. In 
+theory, one could determine this by reverse-engineering the ``active insulin remaining'' detail in the 
+bolus wizard data.
 
 Then, given these conditions, the quick-and-dirty simplest formula is:
 \begin{equation}
@@ -93,15 +124,28 @@ Then
 \label{eq:insulin}
 \end{equation}
 
+Taking derivatives of this yields:
+\begin{equation}
+\pderiv{B_I}{t} = -6SI_0\frac t{t_A^2} 0.05^{\left(\frac t{t_A}\right)^2}
+\comma
+\pderiv{^2 B_I}{t^2} = SI_0\cdot0.05^{\left(\frac t{t_A}\right)^2}\left({36t^2\over t_A^4} - {6\over t_A^2} \right)
+\end{equation}
+Setting the 2nd derivative to 0, we can get the maximum $dB/dt$, $t\sim \frac {t_A}{\sqrt{6}}=1.63$ 
+hours for $t_A=4$, 0.81 hours for $t_A=2$.
+
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[width=4.5in]{figures/absorption.pdf}
-\caption{Insulin absorption curves. The red curve is the overall fractional absorption over time ($I/I_0$), and the black curve is $dI/dt$. The curve is plotted with $t_A=4.0$, meaning that 95\% of the insulin is absorbed after 4 hours.}
+\caption{Insulin absorption curves. The red curve is the overall fractional absorption over time 
+($I/I_0$), and the black curve is $dI/dt$. The curve is plotted with $t_A=4.0$, meaning that 95\% of 
+the insulin is absorbed after 4 hours.}
 \label{default}
 \end{center}
 \end{figure}
 
-Food absorption rates follow the same reasoning. Here, however, the $t_A$  equivalent (call it $t_C$) varies according to the food's score on the glycemic index. Thus, we set $t_C=2.0$ hours for simplicity. Thus:
+Food absorption rates follow the same reasoning. Here, however, the $t_A$  equivalent (call it $t_C$) 
+varies according to the food's score on the glycemic index. Thus, we set $t_C=2.0$ hours for 
+simplicity. Thus:
 
 \begin{equation}
 {B_C}(t) = {S\over\ric}\cdot C_0\left( 1 - 0.05^{\left({t\over{t_C}}\right)^2} \right)
@@ -110,22 +154,40 @@ Food absorption rates follow the same reasoning. Here, however, the $t_A$  equiv
 
 \subsection{How the predictive plot macro works.} 
 
-Rather than looking at raw BG readings, carb totals, and correction boluses, it would be easier to look at all of these quantities in their shared units: BG concentration. As described in the table \ref{table:quants}, there are conversion factors to translate each quantity into a BG-equivalent. Of course, some of these conversions include ``unknown'' quantities - the very quantities we are trying to determine. Thus, the plot will represent a user's estimate, based on his settings.
+Rather than looking at raw BG readings, carb totals, and correction boluses, it would be easier to 
+look at all of these quantities in their shared units: BG concentration. As described in the table 
+\ref{table:quants}, there are conversion factors to translate each quantity into a BG-equivalent. 
+Of course, some of these conversions include ``unknown'' quantities - the very quantities we are 
+trying to determine. Thus, the plot will represent a user's estimate, based on his settings.
 
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[width=4.5in]{figures/example_predictive.pdf}
-\caption{Predictive curve overlaid on top of BG measurements. The curve resets each time a new measurement is made. From the plot above, one can see problems with the morning regime, as well as the evening regime. 
+\caption{Predictive curve overlaid on top of BG measurements. The curve resets each time a new 
+measurement is made. From the plot above, one can see problems with the morning regime, as well as 
+the evening regime. 
 }
 \label{fig:predictive}
 \end{center}
 \end{figure}
 
-The plot macro (see fig. \ref{fig:predictive}) uses 3 classes of information: BG measurements, food intake, and insulin dosages. Based on $S$, $\ric$ and $t_A$ at the time of the event, it uses eq. \ref{eq:insulin} and \ref{eq:carb} (or rather their derivatives) to estimate the BG evolution over time, given the user's inputs. When an additional BG measurement is made (it is taken to have 0 uncertainty), any discrepancy between the estimate and the new measurement is an indication of an incorrect dosage (whether caused by sensitivity $S$, food estimate $C_0$, basal rates, or insulin-to-carb ratio ($\ric$), or a combination of these. The discontinuity in the graph represents the magnitude of the discrepancy.
+The plot macro (see fig. \ref{fig:predictive}) uses 3 classes of information: BG measurements, food 
+intake, and insulin dosages. Based on $S$, $\ric$ and $t_A$ at the time of the event, it uses 
+eq. \ref{eq:insulin} and \ref{eq:carb} (or rather their derivatives) to estimate the BG evolution 
+over time, given the user's inputs. When an additional BG measurement is made (it is taken to have 0 
+uncertainty), any discrepancy between the estimate and the new measurement is an indication of an 
+incorrect dosage (whether caused by sensitivity $S$, food estimate $C_0$, basal rates, or 
+insulin-to-carb ratio ($\ric$), or a combination of these. The discontinuity in the graph represents 
+the magnitude of the discrepancy.
 
-The usefulness of an isolated plot like this is limited. One cannot, given one measurement in time, determine which dose-related quantity ($S$, $C_0$, $\ric$, \rbas) is incorrect. One can circumvent this problem in 2 ways: 1. Reduce the number of unknowns by refraining from eating, or not issuing a corrective bolus, and 2. Analyze data over multiple days, with different characteristics (more food / less food, etc). 
+The usefulness of an isolated plot like this is limited. One cannot, given one measurement in time, 
+determine which dose-related quantity ($S$, $C_0$, $\ric$, \rbas) is incorrect. One can circumvent 
+this problem in 2 ways: 1. Reduce the number of unknowns by refraining from eating, or not issuing 
+a corrective bolus, and 2. Analyze data over multiple days, with different characteristics (more 
+food / less food, etc). 
 
-It is also important to remember that a predictive curve which lines up exactly with the measured BG could be caused by the cancellation of 2 or more effects.
+It is also important to remember that a predictive curve which lines up exactly with the measured 
+BG could be caused by the cancellation of 2 or more effects.
 
 \subsection{Predictive plot macro and error bands.} More on this later.
 
@@ -134,15 +196,24 @@ It is also important to remember that a predictive curve which lines up exactly 
 
 \subsection{Dedicated Event-by-event macros}
 
-User-conducted studies are foreseen to play a large role in the Phase I software. The fasting basal rates and fixed carbohydrate meals are extremely valuable, and as such, making them easy for the user to execute is an important goal of the software.
+User-conducted studies are foreseen to play a large role in the Phase I software. The fasting basal 
+rates and fixed carbohydrate meals are extremely valuable, and as such, making them easy for the user 
+to execute is an important goal of the software.
 
-For somewhat unrelated reasons, a skeleton of a user interface has been developed to help keep track of certain data. This user interface could allow the user to indicate when such a study (fixed carb or fasting basal) has been performed, rather than the software attempting to find these events on its own.
+For somewhat unrelated reasons, a skeleton of a user interface has been developed to help keep track 
+of certain data. This user interface could allow the user to indicate when such a study (fixed carb 
+or fasting basal) has been performed, rather than the software attempting to find these events on 
+its own.
 
-It is envisioned that in the Phase III version of the software will have the capacity to find these events, and other ``accidental studies'' unwittingly carried out by the user, and act on them. However, the aforementioned user-delimited studies will suffice; they are also safer, since the Phase III software would require the user to keep more detailed records.
+It is envisioned that in the Phase III version of the software will have the capacity to find these 
+events, and other ``accidental studies'' unwittingly carried out by the user, and act on them. 
+However, the aforementioned user-delimited studies will suffice; they are also safer, since the Phase 
+III software would require the user to keep more detailed records.
 
 \section{Phase I.5}
 
-In this phase, specific events are plotted in order to get a feel for the meaning of data branches (not always ), and to gain experience ahead of developing the phase II software.
+In this phase, specific events are plotted in order to get a feel for the meaning of data branches 
+(not always ), and to gain experience ahead of developing the phase II software.
 
 \begin{enumerate}
 \item What does BWZActiveInsulin mean with a value of -1?
@@ -152,18 +223,32 @@ In this phase, specific events are plotted in order to get a feel for the meanin
 
 \subsection{Food uncertainties}
 
-A crucial aspect of the Phase II software would be to incorporate carbohydrate  uncertainties into the data model. Consider this scenario: each time a packaged, labeled food is consumed, the dosage is correct; however, each time an un-labeled meal is consumed, the insulin dosage is underestimated, leading to higher blood sugar levels. The Phase I software will suggest increasing bolus rates, and as a result the average blood sugar will decrease. However, well-labeled meals will now be consistently overestimated.
+A crucial aspect of the Phase II software would be to incorporate carbohydrate  uncertainties into the 
+data model. Consider this scenario: each time a packaged, labeled food is consumed, the dosage is 
+correct; however, each time an un-labeled meal is consumed, the insulin dosage is underestimated, 
+leading to higher blood sugar levels. The Phase I software will suggest increasing bolus rates, and 
+as a result the average blood sugar will decrease. However, well-labeled meals will now be 
+consistently overestimated.
 
 \subsection{The Event Data Model (EDM)}
 
-It is not altogether straightforward how to specify an ``event'' in this type of scenario. Several things could qualify as ``events,'' in that they happen at a particular time: a glucose measurement, a meal, and a bolus. Sometimes these events occur simultaneously, and sometimes they do not. Some events, such as exercise and raised basal rates, occur over a fixed period of time. And the act of insulin absorption and carbohydrate metabolism evolve over a period of time.
+It is not altogether straightforward how to specify an ``event'' in this type of scenario. Several 
+things could qualify as ``events,'' in that they happen at a particular time: a glucose measurement, 
+a meal, and a bolus. Sometimes these events occur simultaneously, and sometimes they do not. Some 
+events, such as exercise and raised basal rates, occur over a fixed period of time. And the act of 
+insulin absorption and carbohydrate metabolism evolve over a period of time.
 
-Since the goal of the software is to suggest changes in insulin dosages, it makes sense to build the event around the suggested change in dosage (``At this time, change your bolus rate from 15 g/unit to 18 g/unit''). 
+Since the goal of the software is to suggest changes in insulin dosages, it makes sense to build the 
+event around the suggested change in dosage (``At this time, change your bolus rate from 15 g/unit 
+to 18 g/unit''). 
 
 \section{Phase III Software}
 
 \section{Pairing with dietary changes}
-It has been suggested that coupling an appropriate insulin regimen with dietary changes may significantly improve sugar control. ADA suggestions, along with a pre-prandial test of $<$130, a post-prandial target of $<$180 is desired. It is likely that this can only be achieved with significant dietary changes. These changes include (but are not limited to):
+It has been suggested that coupling an appropriate insulin regimen with dietary changes may 
+significantly improve sugar control. ADA suggestions, along with a pre-prandial test of $<$130, 
+a post-prandial target of $<$180 is desired. It is likely that this can only be achieved with 
+significant dietary changes. These changes include (but are not limited to):
 \bi
 	\i Reducing total carb intake (weekly metric)
 	\i Spreading carb intake over a longer period of time (coupled with an early bolus!)
@@ -186,7 +271,8 @@ Replacement options
 	\i Vegetables
 \ei
 
-A reasonable target might be to never be above 200 mg/dL. Particularly in the post-prandial period, from which I have managed to shift all testing. Other healthy habits:
+A reasonable target might be to never be above 200 mg/dL. Particularly in the post-prandial period, 
+from which I have managed to shift all testing. Other healthy habits:
 \bi
 	\i Drink lots of water
 	\i Exercise
@@ -196,14 +282,19 @@ A reasonable target might be to never be above 200 mg/dL. Particularly in the po
 
 \subsection{Quantifying the Advantages of Carb Intake Reduction and E.B.}
 
-Fig.~\ref{fig:reduceCarb_eb} has some representative plots showing the potential gain of reducing carb intake, and bolusing before food intake (early bolus). The plots show the gains assuming perfect bolus estimates, however it should be noted that lowering carbohydrate intake can also reduce the potential for mis-estimation. Strict adhesion to a $<$65 grams per meal diet with heavy early-bolus could result in as much as a 1\% improvement in \hbac
+Fig.~\ref{fig:reduceCarb_eb} has some representative plots showing the potential gain of reducing 
+carb intake, and bolusing before food intake (early bolus). The plots show the gains assuming perfect 
+bolus estimates, however it should be noted that lowering carbohydrate intake can also reduce the 
+potential for mis-estimation. Strict adhesion to a $<$65 grams per meal diet with heavy early-bolus 
+could result in as much as a 1\% improvement in \hbac
 
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[width=3.in]{figures/reduced_carb.pdf}
 \includegraphics[width=3.in]{figures/early_bolus.pdf}
 \includegraphics[width=3.in]{figures/reduced_carb_eb.pdf}
-\caption{Left: The effects of multiplying carbohydrate intake by a factor of 3/4 and 1/2 on a nominal day's BG readings. 
+\caption{Left: The effects of multiplying carbohydrate intake by a factor of 3/4 and 1/2 on a 
+nominal day's BG readings. 
 Right: The effects of early bolus, by 15 minutes and 30 minutes. Bottom: Combining both methods. 
 Plots are based on a 2-hour glucose absorption rate and a 4-hour insulin absorption rate.
 The nominal day consists of 45g at 9am, 130g at 12pm, 60g at 4pm and 100g at 8pm. }
@@ -220,15 +311,20 @@ This recurring study is an integral part of the Phase I
 
 \subsection{Fixed-carbohydrate meals (Recurring)}
 
-This study is also important to phase I. The goal is to consume a meal with a fixed, 0-uncertainty number of carbohydrates.
+This study is also important to phase I. The goal is to consume a meal with a fixed, 0-uncertainty 
+number of carbohydrates.
 
 \subsection{Clean Correction Bolus studies}
 
-Correcting a large BG deviation (300+) can give an excellent handle on insulin sensitivity, a key number that affects the correction estimates of both $\rbas$ and $\ric$. (Must assume a reasonably accurate basal rate.) The sensitivity is essential for setting error bars on BG extrapolation curves.
+Correcting a large BG deviation (300+) can give an excellent handle on insulin sensitivity, a key 
+number that affects the correction estimates of both $\rbas$ and $\ric$. (Must assume a reasonably 
+accurate basal rate.) The sensitivity is essential for setting error bars on BG extrapolation curves.
 
 \subsection{Effect of coffee on blood sugar levels}
 
-It is hypothesized that coffee intake should be accompanied by an insulin bolus, though there is insufficient data to corroborate this. A study is suggested which probes the effect of coffee, on an empty stomach, during a period with well-known stable basal rates.
+It is hypothesized that coffee intake should be accompanied by an insulin bolus, though there is 
+insufficient data to corroborate this. A study is suggested which probes the effect of coffee, on an 
+empty stomach, during a period with well-known stable basal rates.
 
 \subsection{Effects of fatty foods}
 
@@ -238,11 +334,19 @@ It is hypothesized that coffee intake should be accompanied by an insulin bolus,
 
 \subsection{Notes}
 
-Important note: the process of correcting insulin doses is highly sensitive to the sensitivity number, $S$. Note that it figures in to carb ratios, insulin, basal rates and correction boluses. Thus, if $S$ is underestimated while trying to change basal rates, the magnitude of the change in basal rate will be overestimated.
+Important note: the process of correcting insulin doses is highly sensitive to the sensitivity number, 
+$S$. Note that it figures in to carb ratios, insulin, basal rates and correction boluses. Thus, if 
+$S$ is underestimated while trying to change basal rates, the magnitude of the change in basal rate 
+will be overestimated.
 
-One way to probe $S$ is to have a clean, non-food correction bolus after a high (say 300+) glucose reading. The subsequent measurement is influenced almost entirely by the correction bolus, and can be used as a data point for that 3-hour period.
+One way to probe $S$ is to have a clean, non-food correction bolus after a high (say 300+) glucose 
+reading. The subsequent measurement is influenced almost entirely by the correction bolus, and can 
+be used as a data point for that 3-hour period.
 
-The ``1500 rule'' (as described in the literature, applying to fast-acting insulin) is supposed to relate daily insulin totals to sensitivity, i.e. $S=1500/T$. I am not sure whether this is based off a 2000 calorie diet, and whether or not eating more changes this value. In any case, my daily totals range from 30-50, so sensitivity, accordingly, seems to be anywhere from 30 to 50. Or 65, who knows?
+The ``1500 rule'' (as described in the literature, applying to fast-acting insulin) is supposed to 
+relate daily insulin totals to sensitivity, i.e. $S=1500/T$. I am not sure whether this is based off 
+a 2000 calorie diet, and whether or not eating more changes this value. In any case, my daily totals 
+range from 30-50, so sensitivity, accordingly, seems to be anywhere from 30 to 50. Or 65, who knows?
 
 \subsubsection{Relation between average glucose readings and \hbac}
 There is some description in the literature about relating \hbac to average BS.
@@ -251,7 +355,8 @@ Based on this one text, the formula is below:
 \[
 BS(\mgdl)=(35.6 \times \hbac)-77.3
 \]
-Below are some representative numbers, for the purposes of setting targets. Roughly speaking, it appears as if 1/4 of a point in \hbac is equivalent to 9 \mgdl. \\
+Below are some representative numbers, for the purposes of setting targets. Roughly speaking, it 
+appears as if 1/4 of a point in \hbac is equivalent to 9 \mgdl. \\
 \begin{center}
 \begin{tabular}{|c|c|}
 \hline
