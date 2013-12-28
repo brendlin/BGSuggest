@@ -1,4 +1,6 @@
 *.[oad]
 *.pyc
 *.so
+*.aux
+*.log
 output.root
