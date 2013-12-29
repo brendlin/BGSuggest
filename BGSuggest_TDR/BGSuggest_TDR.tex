@@ -131,7 +131,9 @@ Taking derivatives of this yields:
 \pderiv{^2 B_I}{t^2} = SI_0\cdot0.05^{\left(\frac t{t_A}\right)^2}\left({36t^2\over t_A^4} - {6\over t_A^2} \right)
 \end{equation}
 Setting the 2nd derivative to 0, we can get the maximum $dB/dt$, $t\sim \frac {t_A}{\sqrt{6}}=1.63$ 
-hours for $t_A=4$ (at which point $dB/dt=0.37I_0$ u/hr), 0.81 hours for $t_A=2$.
+hours for $t_A=4$ (at which point $dB/dt=0.37I_0$ u/hr), 0.81 hours for $t_A=2$. 
+
+Fig.~\ref{fig:absorption} shows the total absorption and $dB/dt$ of a typical ``4-hour'' insulin bolus.
 
 \begin{figure}[htbp]
 \begin{center}
@@ -139,7 +141,7 @@ hours for $t_A=4$ (at which point $dB/dt=0.37I_0$ u/hr), 0.81 hours for $t_A=2$.
 \caption{Insulin absorption curves. The red curve is the overall fractional absorption over time 
 ($I/I_0$), and the black curve is $dI/dt$. The curve is plotted with $t_A=4.0$, meaning that 95\% of 
 the insulin is absorbed after 4 hours.}
-\label{default}
+\label{fig:absorption}
 \end{center}
 \end{figure}
 
@@ -191,6 +193,22 @@ BG could be caused by the cancellation of 2 or more effects.
 
 \subsection{Predictive plot macro and error bands.} More on this later.
 
+\section{Long-term trends}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=4.5in]{figures/year_in_review_2013.pdf}
+\caption{Year in review for the year 2013. Detailed record-keeping began in May.
+\hbac values shown are 7.9, 8.0, 7.7, and 7.6.
+}
+\label{fig:year}
+\end{center}
+\end{figure}
+
+An important aspect of management is assessing long-term trends. Fig.~\ref{fig:year} is a year-long 
+review, which includes rolling 1-week averages, 4-week averages, and 17-week averages. (17 weeks is 
+roughly the lifetime of a red blood cell, and thus the 17-week average should give a fair comparison 
+to \hbac.) 
 
 \section{Phase I Software}
 
@@ -210,14 +228,14 @@ events, and other ``accidental studies'' unwittingly carried out by the user, an
 However, the aforementioned user-delimited studies will suffice; they are also safer, since the Phase 
 III software would require the user to keep more detailed records.
 
-\section{Phase I.5}
+%% \section{Phase I.5}
 
-In this phase, specific events are plotted in order to get a feel for the meaning of data branches 
-(not always ), and to gain experience ahead of developing the phase II software.
+%% In this phase, specific events are plotted in order to get a feel for the meaning of data branches 
+%% (not always ), and to gain experience ahead of developing the phase II software.
 
-\begin{enumerate}
-\item What does BWZActiveInsulin mean with a value of -1?
-\end{enumerate}
+%% \begin{enumerate}
+%% \item What does BWZActiveInsulin mean with a value of -1?
+%% \end{enumerate}
 
 \section{Phase II Software}
 

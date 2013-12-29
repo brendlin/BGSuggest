@@ -267,47 +267,7 @@ class WeekPlot :
         return
 
     def SetGraphs(self,a=[]) :
-        #all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
         if not a : a = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-
-        #all2 = list(aa +' prediction' for aa in all)
-        #a2 = list(aa +' prediction' for aa in a)
-        #allf = list(aa +' food' for aa in all)
-        #af2 = list(aa +' food' for aa in a)
-
-#         self.main_hist.can.cd()
-
-#         for i,o in enumerate(all2) :
-#             if o not in a2 : continue
-#             if self.main_hist.can.GetPrimitive(o) :
-#                 self.main_hist.can.GetPrimitive(o).SetDrawOption('lE3')
-#                 self.main_hist.can.GetPrimitive(o).Draw('lE3')
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerSize(1)
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerColor(color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetLineColor  (color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetFillColor  (color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetLineWidth(2)
-#                 self.main_hist.can.GetPrimitive(o).SetFillStyle(3001)
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerStyle(markerstyles[i])
-
-#         for i,o in enumerate(all) :
-#             if o not in a : continue
-#             if self.main_hist.can.GetPrimitive(o) :
-#                 self.main_hist.can.GetPrimitive(o).SetDrawOption('p')
-#                 self.main_hist.can.GetPrimitive(o).Draw('p')
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerSize(1)
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerColor(color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetLineColor  (color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerStyle(markerstyles[i])
-
-#         for i,o in enumerate(allf) :
-#             if o not in af2 : continue
-#             if self.main_hist.can.GetPrimitive(o) :
-#                 self.main_hist.can.GetPrimitive(o).SetDrawOption('histsames')
-#                 self.main_hist.can.GetPrimitive(o).Draw('histsames')
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerColor(color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetLineColor  (color[i])
-#                 self.main_hist.can.GetPrimitive(o).SetMarkerStyle(markerstyles[i])
         
         icol   = []
         iregs  = []
@@ -351,25 +311,25 @@ class WeekPlot :
 
         return
 
-    def GetDay(self,day) :
+    def GetDay(self,days) :
         self.TurnOffDays()
-        self.SetGraphs([day])
+        self.SetGraphs(days)
         self.main_hist.can.Draw()
 
     def Mon(self) :
-        self.GetDay('Monday')
+        self.GetDay(['Monday'])
     def Tues(self) :
-        self.GetDay('Tuesday')
+        self.GetDay(['Monday','Tuesday'])
     def Wed(self) :
-        self.GetDay('Wednesday')
+        self.GetDay(['Tuesday','Wednesday'])
     def Thurs(self) :
-        self.GetDay('Thursday')
+        self.GetDay(['Wednesday','Thursday'])
     def Fri(self) :
-        self.GetDay('Friday')
+        self.GetDay(['Thursday','Friday'])
     def Sat(self) :
-        self.GetDay('Saturday')
+        self.GetDay(['Friday','Saturday'])
     def Sun(self) :
-        self.GetDay('Sunday')
+        self.GetDay(['Saturday','Sunday'])
     def all(self) :
         self.SetGraphs()
 
