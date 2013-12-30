@@ -106,12 +106,69 @@ class WeekPlot :
         print 'Options:'
         print '   c.Detailed(\'last\')'
         print '   c.GetDetailed(18)'
-        print '   c.Mon()'
-        print '   c.GetOverview(\'last\')'
+        print '   c.m()'
+        print '   c.Overview(\'last\')'
         print '   c.GetOverview(18,18)'
         print '   c.YearInReview()'
+        print '   c.SuppliesSummary()'
+        print '   c.DoSample()'
 
         return
+
+    def SuppliesSummary(self) :
+        rewind_histo   = TH1F('Rewind Frequency','Rewind Frequency',48,0,6)
+        supplies_histo = TH1F('Infusion Sets','Infusion Sets',52,0,52)
+        strips_histo   = TH1F('Test Strips /10','Test Strips /10',52,0,52)
+        test_f_histo   = TH1F('Test Frequency','Test Frequency',96,0,24)
+        last_rewind     = 0
+        last_bg         = 0
+        rolling_rewinds = 0
+        rolling_bgs     = 0
+        first_week      = 0
+        week_in_question = first_week
+        for i in range(e.GetEntries()) :
+            e.GetEntry(i)
+            if e.WeekOfYear < first_week : continue
+            if e.WeekOfYear != week_in_question :
+                if week_in_question ==  0 : 
+                    rolling_rewinds += 32
+                    rolling_bgs     += 1000./10.
+                if week_in_question == 19 : 
+                    rolling_rewinds += 50
+                    rolling_bgs     += 400./10.
+                if week_in_question == 47 : 
+                    rolling_rewinds += 10
+                    rolling_bgs     += 100./10.
+                if week_in_question == 49 : 
+                    rolling_rewinds += 50
+                    rolling_bgs     += 450./10.
+                supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
+                strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
+                week_in_question = e.WeekOfYear
+            if e.Rewind :
+                rolling_rewinds -= 1
+                if last_rewind :
+                    rewind_histo.Fill((e.UniversalTime-last_rewind)/float(t.OneDay))
+                last_rewind = e.UniversalTime
+            if e.BGReading > 0. :
+                rolling_bgs -= 1/10.
+                if last_bg :
+                    test_f_histo.Fill((e.UniversalTime-last_bg)/float(t.OneHour))
+                last_bg = e.UniversalTime
+
+        self.rewind_plot = SmartPlot(0,'','Rewind Frequency',[rewind_histo],drawopt='hist')
+        self.rewind_plot.SetAxisLabels('Days between Rewinds','Entries')
+        test_f_histo.SetName('Test Frequency (avg=%2.2f/day)'%(24./float(test_f_histo.GetMean())))
+        self.test_f_plot = SmartPlot(0,'','Test Frequency',[test_f_histo],drawopt='hist')
+        self.test_f_plot.SetAxisLabels('Hours between tests','Entries')
+        self.supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo],drawopt='hist')
+        self.supplies_plot.SetAxisLabels('Week Of Year','# of supplies')
+        from ROOT import kRed
+        self.supplies_plot.plots[0].GetYaxis().SetRangeUser(0,120)
+        self.supplies_plot.DrawHorizontal(30./3.,style=2)
+        self.supplies_plot.DrawHorizontal(4.5*30./10.,style=2,color=kRed+1)
+        self.supplies_plot.DrawTextNDC(.2,.135,'30 Days Left')
+        self.supplies_plot.DrawTextNDC(.2,.20,'30 Days Left',color=kRed+1)
 
     def a1cToBS(self,n) :
         if ADA :
@@ -411,7 +468,7 @@ class WeekPlot :
         # DailyInsulinTotal
         pass
 
-    def doSample(self) :
+    def DoSample(self) :
 
         tf1s = []
         ntest = 3

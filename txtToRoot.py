@@ -54,7 +54,7 @@ tree.Branch("ProgrammedBolusDuration",ROOT.AddressOf(s,"ProgrammedBolusDuration"
 tree.Branch("PrimeType"              ,ROOT.AddressOf(s,"PrimeType"              ),"PrimeType"              +"/C") ###
 tree.Branch("PrimeVolumeDelivered"   ,ROOT.AddressOf(s,"PrimeVolumeDelivered"   ),"PrimeVolumeDelivered"   +"/F")
 tree.Branch("Suspend"                ,ROOT.AddressOf(s,"Suspend"                ),"Suspend"                +"/C") ###
-tree.Branch("Rewind"                 ,ROOT.AddressOf(s,"Rewind"                 ),"Rewind"                 +"/C") ###
+tree.Branch("Rewind"                 ,ROOT.AddressOf(s,"Rewind"                 ),"Rewind"                 +"/I") # Changed
 tree.Branch("BWZEstimate"            ,ROOT.AddressOf(s,"BWZEstimate"            ),"BWZEstimate"            +"/F")
 tree.Branch("BWZTargetHighBG"        ,ROOT.AddressOf(s,"BWZTargetHighBG"        ),"BWZTargetHighBG"        +"/I")
 tree.Branch("BWZTargetLowBG"         ,ROOT.AddressOf(s,"BWZTargetLowBG"         ),"BWZTargetLowBG"         +"/I")
@@ -147,7 +147,7 @@ for inputfilename in inputfilenames :
             s.PrimeType               = linevector[14]
             s.PrimeVolumeDelivered    = float(linevector[15])
             s.Suspend                 = linevector[16]
-            s.Rewind                  = linevector[17]
+            s.Rewind                  = 1 if linevector[17] else 0
             s.BWZEstimate             = float(linevector[18])
             s.BWZTargetHighBG         = int(linevector[19])
             s.BWZTargetLowBG          = int(linevector[20])

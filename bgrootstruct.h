@@ -20,7 +20,7 @@ struct bgrootstruct{
   std::string PrimeType              ;
   Float_t     PrimeVolumeDelivered   ;
   std::string Suspend                ;
-  std::string Rewind                 ;
+  Int_t       Rewind                 ;
   Float_t     BWZEstimate            ;
   Int_t       BWZTargetHighBG        ;
   Int_t       BWZTargetLowBG         ;
