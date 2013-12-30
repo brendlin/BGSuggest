@@ -119,12 +119,15 @@ class WeekPlot :
         rewind_histo   = TH1F('Rewind Frequency','Rewind Frequency',48,0,6)
         supplies_histo = TH1F('Infusion Sets','Infusion Sets',52,0,52)
         strips_histo   = TH1F('Test Strips /10','Test Strips /10',52,0,52)
+        insulin_histo  = TH1F('Insulin Vials*10','Insulin Vials*10',52,0,52)
         test_f_histo   = TH1F('Test Frequency','Test Frequency',96,0,24)
         last_rewind     = 0
         last_bg         = 0
         rolling_rewinds = 0
         rolling_bgs     = 0
         first_week      = 0
+        rolling_insulin = 0
+        last_insulin    = 0
         week_in_question = first_week
         for i in range(e.GetEntries()) :
             e.GetEntry(i)
@@ -133,18 +136,26 @@ class WeekPlot :
                 if week_in_question ==  0 : 
                     rolling_rewinds += 32
                     rolling_bgs     += 1000./10.
+                    rolling_insulin += 90.
                 if week_in_question == 19 : 
                     rolling_rewinds += 50
                     rolling_bgs     += 400./10.
+                    rolling_insulin += 50.
                 if week_in_question == 47 : 
                     rolling_rewinds += 10
                     rolling_bgs     += 100./10.
                 if week_in_question == 49 : 
                     rolling_rewinds += 50
                     rolling_bgs     += 450./10.
+                if week_in_question == 50 :
+                    rolling_insulin = 90.
                 supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
                 strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
+                insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
                 week_in_question = e.WeekOfYear
+                #
+                rolling_insulin = rolling_insulin - 2.5
+
             if e.Rewind :
                 rolling_rewinds -= 1
                 if last_rewind :
@@ -161,7 +172,7 @@ class WeekPlot :
         test_f_histo.SetName('Test Frequency (avg=%2.2f/day)'%(24./float(test_f_histo.GetMean())))
         self.test_f_plot = SmartPlot(0,'','Test Frequency',[test_f_histo],drawopt='hist')
         self.test_f_plot.SetAxisLabels('Hours between tests','Entries')
-        self.supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo],drawopt='hist')
+        self.supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo,insulin_histo],drawopt='hist')
         self.supplies_plot.SetAxisLabels('Week Of Year','# of supplies')
         from ROOT import kRed
         self.supplies_plot.plots[0].GetYaxis().SetRangeUser(0,120)
