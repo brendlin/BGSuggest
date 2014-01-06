@@ -11,6 +11,8 @@ gStyle.SetCanvasDefH(500)
 import time
 import math
 
+NWEEKS = 104
+
 ADA = False
 KURT = True
 
@@ -117,9 +119,9 @@ class WeekPlot :
 
     def SuppliesSummary(self) :
         rewind_histo   = TH1F('Rewind Frequency','Rewind Frequency',48,0,6)
-        supplies_histo = TH1F('Infusion Sets','Infusion Sets',52,0,52)
-        strips_histo   = TH1F('Test Strips /10','Test Strips /10',52,0,52)
-        insulin_histo  = TH1F('Insulin Vials*10','Insulin Vials*10',52,0,52)
+        supplies_histo = TH1F('Infusion Sets','Infusion Sets',NWEEKS,0,NWEEKS)
+        strips_histo   = TH1F('Test Strips /10','Test Strips /10',NWEEKS,0,NWEEKS)
+        insulin_histo  = TH1F('Insulin (mL, 10mL/vial)','Insulin (mL, 10mL/vial)',NWEEKS,0,NWEEKS)
         test_f_histo   = TH1F('Test Frequency','Test Frequency',96,0,24)
         last_rewind     = 0
         last_bg         = 0
@@ -167,6 +169,11 @@ class WeekPlot :
                     test_f_histo.Fill((e.UniversalTime-last_bg)/float(t.OneHour))
                 last_bg = e.UniversalTime
 
+        print week_in_question
+        supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
+        strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
+        insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
+
         self.rewind_plot = SmartPlot(0,'','Rewind Frequency',[rewind_histo],drawopt='hist')
         self.rewind_plot.SetAxisLabels('Days between Rewinds','Entries')
         test_f_histo.SetName('Test Frequency (avg=%2.2f/day)'%(24./float(test_f_histo.GetMean())))
@@ -174,12 +181,13 @@ class WeekPlot :
         self.test_f_plot.SetAxisLabels('Hours between tests','Entries')
         self.supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo,insulin_histo],drawopt='hist')
         self.supplies_plot.SetAxisLabels('Week Of Year','# of supplies')
-        from ROOT import kRed
+        from ROOT import kRed,kAzure
         self.supplies_plot.plots[0].GetYaxis().SetRangeUser(0,120)
         self.supplies_plot.DrawHorizontal(30./3.,style=2)
         self.supplies_plot.DrawHorizontal(4.5*30./10.,style=2,color=kRed+1)
         self.supplies_plot.DrawTextNDC(.2,.135,'30 Days Left')
         self.supplies_plot.DrawTextNDC(.2,.20,'30 Days Left',color=kRed+1)
+        self.supplies_plot.DrawTextNDC(.2,.235,'100 u/mL, 1000 u/vial',color=kAzure-2)
 
     def a1cToBS(self,n) :
         if ADA :
@@ -189,7 +197,7 @@ class WeekPlot :
         return 35.6*(n-7)+171.90,'35.6*(n-7)+171.90'
 
     def YearInReview(self) :
-        yir = TH1F('AverageBG','AverageBG',52,0,52)
+        yir = TH1F('AverageBG','AverageBG',NWEEKS,0,NWEEKS)
         for i in range(last_week+1) :
             req = 'BGReading > 00 && WeekOfYear == %d'%(i)
             n = e.Draw('BGReading>>hist%d(100,0,500)'%(i),req,'goff')
@@ -204,7 +212,7 @@ class WeekPlot :
             yir.SetBinContent(i+1,Avg)
             yir.SetBinError(i+1,RootMeanSquare(vals))
 
-        yir_smooth = TH1F('4-week average','4-week average',52,0,52)
+        yir_smooth = TH1F('4-week average','4-week average',NWEEKS,0,NWEEKS)
         for i in range(last_week+1) :
             req = 'BGReading > 00 && WeekOfYear <= %d && WeekOfYear >= %d-3'%(i,i)
             n = e.Draw('BGReading>>hist%d(100,-500,500)'%(i),req,'goff')
@@ -219,7 +227,7 @@ class WeekPlot :
             yir_smooth.SetBinContent(i+1,Avg)
             yir_smooth.SetBinError(i+1,RootMeanSquare(vals))
 
-        yir_17w = TH1F('17-week average','17-week average',52,0,52)
+        yir_17w = TH1F('17-week average','17-week average',NWEEKS,0,NWEEKS)
         for i in range(last_week+1) :
             req = 'BGReading > 00 && WeekOfYear <= %d && WeekOfYear >= %d-16'%(i,i)
             n = e.Draw('BGReading>>hist%d(100,-500,500)'%(i),req,'goff')
@@ -234,7 +242,7 @@ class WeekPlot :
             yir_17w.SetBinContent(i+1,Avg)
             yir_17w.SetBinError(i+1,RootMeanSquare(vals))
                
-        yir_food = TH1F('Food Intake','Food Intake',52,0,52)
+        yir_food = TH1F('Food Intake','Food Intake',NWEEKS,0,NWEEKS)
         for i in range(last_week+1) :
             req = 'BWZCarbInput > 00 && WeekOfYear == %d'%(i)
             n = e.Draw('BWZCarbInput>>hist%d(100,-500,500)'%(i),req,'goff')
@@ -269,7 +277,7 @@ class WeekPlot :
         a1cs.SetMarkerStyle(20)
         a1cs.SetMarkerSize(2)
 
-        dummy2 = TH1F('dummy2','dummy2',12,0,52)
+        dummy2 = TH1F('dummy2','dummy2',12*NWEEKS/52,0,NWEEKS)
         dummy2.GetXaxis().SetBinLabel( 1,'Jan')
         dummy2.GetXaxis().SetBinLabel( 2,'Feb')
         dummy2.GetXaxis().SetBinLabel( 3,'Mar')
@@ -283,7 +291,7 @@ class WeekPlot :
         dummy2.GetXaxis().SetBinLabel(11,'Nov')
         dummy2.GetXaxis().SetBinLabel(12,'Dec')
 
-        self.year_in_review = SmartPlot(0,'','Year In Review',[dummy2,yir,yir_smooth,yir_17w,yir_food])
+        self.year_in_review = SmartPlot(0,'','Year In Review',[dummy2,yir,yir_smooth,yir_17w,yir_food],canw=1000)
         from ROOT import kRed,kAzure,kBlack
         self.year_in_review.SetColors(these_colors=[kBlack,kBlack,kRed+1,kAzure-2,kBlack])
         self.year_in_review.plots[0].SetLineWidth(1)
@@ -336,7 +344,9 @@ class WeekPlot :
 
     def SetGraphs(self,a=[]) :
         if not a : a = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-        
+        if self.main_hist.ngraphs < 7 :
+            a = a[:self.main_hist.ngraphs]
+
         icol   = []
         iregs  = []
         ipreds = []
@@ -344,8 +354,8 @@ class WeekPlot :
         for i in a :
             icol.append(daynumbers[i])
             iregs.append(2+daynumbers[i])
-            ipreds.append(2+daynumbers[i]+7)
-            ifoods.append(2+daynumbers[i]+14)
+            ipreds.append(2+daynumbers[i]+self.main_hist.ngraphs)
+            ifoods.append(2+daynumbers[i]+2*self.main_hist.ngraphs)
 
         print iregs
         print ipreds
@@ -717,6 +727,7 @@ class WeekPlot :
         #
         # Add prediciton graphs
         #
+        self.main_hist.ngraphs = len(graphs)
         for i in range(len(graphs)) :
             self.main_hist.plots.append(tf1s[i])
             self.main_hist.can.cd()
