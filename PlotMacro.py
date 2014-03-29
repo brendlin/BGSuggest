@@ -134,7 +134,7 @@ class WeekPlot :
         for i in range(e.GetEntries()) :
             e.GetEntry(i)
             if e.WeekOfYear < first_week : continue
-            if e.WeekOfYear != week_in_question :
+            if e.WeekOfYear != week_in_question or (i == e.GetEntries()-1) :
                 if week_in_question ==  0 : 
                     rolling_rewinds += 32
                     rolling_bgs     += 1000./10.
@@ -151,6 +151,8 @@ class WeekPlot :
                     rolling_bgs     += 450./10.
                 if week_in_question == 50 :
                     rolling_insulin = 90.
+                if week_in_question == 63 : # purchased on March 5; accounting on March 19
+                    rolling_bgs      = 270./10.
                 supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
                 strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
                 insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
@@ -443,9 +445,22 @@ class WeekPlot :
         graphs.append(TGraph(n,e.GetV2(),e.GetV1()))
 
         Avg = 0
+        n_below_80  = 0
+        n_target    = 0
+        n_above_160 = 0
+        n_above_200 = 0
         for x in range(n) :
-            Avg += e.GetV1()[x]
+            num = e.GetV1()[x]
+            Avg += num
+            if (num > 160 )    : n_above_160 += 1
+            elif (num < 80)    : n_below_80  += 1
+            else               : n_target    += 1
+            if (num >= 200)    : n_above_200 += 1
         Avg = Avg / float(n)
+        n_below_80  = 100.*n_below_80 /float(n)
+        n_target    = 100.*n_target   /float(n)
+        n_above_160 = 100.*n_above_160/float(n)
+        n_above_200 = 100.*n_above_200/float(n)
 
         hists_fine.append(gDirectory.Get('hist%d%d'%(d1,d2)))
         key = 'coarse hist %d %d'%(d1,d2)
@@ -463,7 +478,7 @@ class WeekPlot :
         nametitle = 'Week %d (N=%d)'%(d1,graphs[-1].GetN())
         graphs[-1].SetNameTitle(nametitle,nametitle)
 
-        title = '%s (N=%d, \mu=%0.1f).'%(t.GetWeeksString(d1,d2),graphs[-1].GetN(),Avg)
+        title = '%s (N=%d, #mu=%0.1f).'%(t.GetWeeksString(d1,d2),graphs[-1].GetN(),Avg)
 
         if 'plain_hist' in dir(self) :
             self.old_plain_hists.append(self.plain_hist)
@@ -473,6 +488,8 @@ class WeekPlot :
         self.plain_hist.plots[2].SetMarkerColor(1)
         self.plain_hist.DrawHorizontal(80.)
         self.plain_hist.DrawHorizontal(160.)
+        self.plain_hist.DrawTextNDC(.2,.83,'%2.1f%% below, %2.1f%% target, %2.1f%% above'%(n_below_80,n_target,n_above_160))
+        self.plain_hist.DrawTextNDC(.2,.78,'%2.1f%% above 200'%(n_above_200))
 
         return
 
@@ -707,7 +724,7 @@ class WeekPlot :
 
         Avg = Avg / float(N)
         nametitle = 'Week %d (N=%d)'%(d1,N)
-        title = '%s (N=%d, \mu=%0.1f)'%(t.GetWeeksString(d1,d2),N,Avg)
+        title = '%s (N=%d, #mu=%0.1f)'%(t.GetWeeksString(d1,d2),N,Avg)
 
         if 'main_hist' in dir(self) :
             self.old_main_hists.append(self.main_hist)
