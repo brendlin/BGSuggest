@@ -2,7 +2,7 @@
 from ROOT import TFile,TGraph,TCanvas,gROOT,gDirectory,TH1F,TH2F,TF1,kGray,kBlack,gStyle,TGraphAsymmErrors
 from PlotUtils import SmartPlot,color,markerstyles
 from array import array
-from PyBGSuggestHelpers import TimeClass
+from PyBGSuggestHelpers import TimeClass,color
 t = TimeClass()
 import rootlogon
 rootlogon.set_palette('Higgs')
@@ -107,7 +107,7 @@ class WeekPlot :
 
         print 'Options:'
         print '   c.Detailed(\'last\')'
-        print '   c.GetDetailed(18)'
+        print '   c.GetDetailed(18,18)'
         print '   c.m()'
         print '   c.Overview(\'last\')'
         print '   c.GetOverview(18,18)'
@@ -171,7 +171,7 @@ class WeekPlot :
                     test_f_histo.Fill((e.UniversalTime-last_bg)/float(t.OneHour))
                 last_bg = e.UniversalTime
 
-        print week_in_question
+        #print week_in_question
         supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
         strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
         insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
@@ -256,6 +256,7 @@ class WeekPlot :
                
         a1x = []
         a1y = []
+        # May 30, 2012 : 7.7 (last result from SHS)
         # january
         a1x.append(t.GetWeekOfYear(t.TimeFromString('01/12/13 04:00:00')))
         a1y.append(self.a1cToBS(7.9)[0])
@@ -268,6 +269,9 @@ class WeekPlot :
         # december
         a1x.append(t.GetWeekOfYear(t.TimeFromString('12/19/13 04:00:00')))
         a1y.append(self.a1cToBS(7.6)[0])
+        # april
+        a1x.append(t.GetWeekOfYear(t.TimeFromString('04/08/14 04:00:00')))
+        a1y.append(self.a1cToBS(7.3)[0])
         #
         x_a1 = array('d',a1x)
         y_a1 = array('d',a1y)
@@ -292,8 +296,23 @@ class WeekPlot :
         dummy2.GetXaxis().SetBinLabel(10,'Oct')
         dummy2.GetXaxis().SetBinLabel(11,'Nov')
         dummy2.GetXaxis().SetBinLabel(12,'Dec')
+        dummy2.GetXaxis().SetBinLabel(13,'Jan')
+        dummy2.GetXaxis().SetBinLabel(14,'Feb')
+        dummy2.GetXaxis().SetBinLabel(15,'Mar')
+        dummy2.GetXaxis().SetBinLabel(16,'Apr')
+        dummy2.GetXaxis().SetBinLabel(17,'May')
+        dummy2.GetXaxis().SetBinLabel(18,'Jun')
+        dummy2.GetXaxis().SetBinLabel(19,'Jul')
+        dummy2.GetXaxis().SetBinLabel(20,'Aug')
+        dummy2.GetXaxis().SetBinLabel(21,'Sep')
+        dummy2.GetXaxis().SetBinLabel(22,'Oct')
+        dummy2.GetXaxis().SetBinLabel(23,'Nov')
+        dummy2.GetXaxis().SetBinLabel(24,'Dec')
 
-        self.year_in_review = SmartPlot(0,'','Year In Review',[dummy2,yir,yir_smooth,yir_17w,yir_food],canw=1000)
+        yir_type = 'ADA'
+        if KURT : yir_type = 'Ad Hoc'
+        yir_title = 'Year In Review (%s)'%(yir_type)
+        self.year_in_review = SmartPlot(0,'',yir_title,[dummy2,yir,yir_smooth,yir_17w,yir_food],canw=1000)
         from ROOT import kRed,kAzure,kBlack
         self.year_in_review.SetColors(these_colors=[kBlack,kBlack,kRed+1,kAzure-2,kBlack])
         self.year_in_review.plots[0].SetLineWidth(1)
@@ -321,7 +340,7 @@ class WeekPlot :
             self.year_in_review.DrawHorizontal(136.3)
             self.year_in_review.DrawHorizontal(171.9)
             self.year_in_review.DrawHorizontal(207.5)
-        self.year_in_review.recreateLegend(.2,.15,.7,.25)
+        self.year_in_review.RecreateLegend(.2,.15,.7,.25)
         self.year_in_review.can.SetGrid()
 
     def TurnOffDays(self) :
@@ -359,9 +378,9 @@ class WeekPlot :
             ipreds.append(2+daynumbers[i]+self.main_hist.ngraphs)
             ifoods.append(2+daynumbers[i]+2*self.main_hist.ngraphs)
 
-        print iregs
-        print ipreds
-        print ifoods
+        #print iregs
+        #print ipreds
+        #print ifoods
 
         self.main_hist.can.cd()
 
@@ -639,7 +658,7 @@ class WeekPlot :
             self.containers[-1].type     = 'BGReading'
             self.containers[-1].const_BG = 115.
 
-            print x
+            #print x
             tf1s.append(self.GetPredictionPlots(0,x))
             key = NAMES[x]+' (IBG=%2.2f)'%GetIntegratedAverage(tf1s[-1])
             tf1s[-1].SetNameTitle(key,key)
@@ -658,7 +677,7 @@ class WeekPlot :
             self.sample_hist.plots[i+1].SetDrawOption('p')
             self.sample_hist.plots[i+1].SetMarkerColor(color[i])
             self.sample_hist.plots[i+1].SetLineColor(color[i])
-        self.sample_hist.createLegend(.5,.65,.95,.88)
+        self.sample_hist.CreateLegend(.5,.65,.95,.88)
         self.sample_hist.SetLegend(skip=[0])
         self.sample_hist.can.cd()
         self.sample_hist.leg.Draw()
@@ -733,7 +752,7 @@ class WeekPlot :
 
         self.main_hist.can.SetCanvasSize(1000,700)
         self.main_hist.DrawHorizontal(80.)
-        self.main_hist.createLegend(.6,.65,.85,.88)
+        self.main_hist.CreateLegend(.6,.65,.85,.88)
         self.main_hist.SetLegend(skip=[0,1])
         self.main_hist.can.cd()
         self.main_hist.leg.Draw()
@@ -766,6 +785,12 @@ class WeekPlot :
     # Fill all the containers for information before doing the predictive part
     #
     def LoadDayEstimateDDX(self,week,day) :
+        print 'Called LoadDayEstimate'
+        print '%%%%%%%%%%%%%%%%%%%'
+        print ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][day]
+        print t.StringFromTime(t.WeekDayHourToUniversal(week,day,0))
+        print '%%%%%%%%%%%%%%%%%%%'
+
         #
         # Look for any event between midnight of the previous day and 4am of the next day.
         #
@@ -841,19 +866,72 @@ class WeekPlot :
             #
             # Insulin mothafucka
             #
-            if e.BWZEstimate > 0 :
+            if j != i : 
+                j = i
+            e.GetEntry(i)
+            if e.BolusVolumeDelivered > 0 :
 
                 self.containers.append(BGFunction())
                 self.containers[-1].type  = 'Insulin'
                 self.containers[-1].iov_0 = e.UniversalTime
                 self.containers[-1].iov_1 = e.UniversalTime+6.*t.OneHour
-                self.containers[-1].S     = e.BWZInsulinSensitivity
                 self.containers[-1].Ta    = 4.
-                self.containers[-1].I0    = e.BWZEstimate
+                self.containers[-1].I0    = e.BolusVolumeDelivered
+                self.containers[-1].I0Est = 0.
+                self.containers[-1].S     = 60. # need to fix!
 
+                #
+                # Matching BWZEstimate from delivered insulin
+                #
+                IsBWZEstimate = False
+                for j in range(i-1,i-10,-1) :
+                    e.GetEntry(j)
+                    if e.BWZEstimate > 0 and (abs(e.UniversalTime - self.containers[-1].iov_0)<5) :
+                        self.containers[-1].I0Est = e.BWZEstimate
+                        self.containers[-1].S     = e.BWZInsulinSensitivity
+                        self.containers[-1].BWZCorrectionEstimate = e.BWZCorrectionEstimate
+                        self.containers[-1].BWZFoodEstimate       = e.BWZFoodEstimate      
+                        self.containers[-1].BWZActiveInsulin      = e.BWZActiveInsulin     
+                        self.containers[-1].BWZBGInput            = e.BWZBGInput
+                        self.containers[-1].RIC                   = e.BWZCarbRatio
+                        IsBWZEstimate = True
+                        break
+                    #if j == i-9 :
+                    #    print 'Warning! Could not find BWZ estimate!',t.StringFromTime(self.containers[-1].iov_0)
+                for j in range(i+1,i+10) :
+                    if self.containers[-1].I0Est > 0 : 
+                        break
+                    e.GetEntry(j)
+                    if e.BWZEstimate > 0 and (abs(e.UniversalTime - self.containers[-1].iov_0)<5) :
+                        self.containers[-1].I0Est = e.BWZEstimate
+                        self.containers[-1].S     = e.BWZInsulinSensitivity
+                        self.containers[-1].BWZCorrectionEstimate = e.BWZCorrectionEstimate
+                        self.containers[-1].BWZFoodEstimate       = e.BWZFoodEstimate      
+                        self.containers[-1].BWZActiveInsulin      = e.BWZActiveInsulin     
+                        self.containers[-1].BWZBGInput            = e.BWZBGInput
+                        self.containers[-1].RIC                   = e.BWZCarbRatio
+                        IsBWZEstimate = True
+                        break
+                    if j == i+9 :
+                        print 'Error! Could not find BWZ estimate!',t.StringFromTime(self.containers[-1].iov_0)
+                    
+                if IsBWZEstimate and (self.containers[-1].I0 != self.containers[-1].I0Est) :
+                    self.containers[-1].BWZMatchedDelivered = False
+                    #print 'Estimate != delivered!',
+                    #print t.StringFromTime(self.containers[-1].iov_0),
+                    #diff = 100.*(self.containers[-1].I0-self.containers[-1].I0Est)/float(self.containers[-1].I0Est)
+                    #print '%2.1f Est, %2.1f delivered. %2.1f'%(self.containers[-1].I0Est,self.containers[-1].I0,diff)+'%'
+
+                if self.containers[-1].iov_0 > self.start_of_plot_day :
+                    self.containers[-1].PrintBolus()
+                
+                e.GetEntry(i)
             #
             # Food bitch!
             #
+            if j != i : 
+                j = i
+            e.GetEntry(i)
             if e.BWZCarbInput > 0 :
 
                 self.containers.append(BGFunction())
@@ -998,10 +1076,17 @@ class BGFunction :
         self.const_BG = 0
         self.S = 0 # sensitivity
         self.Ta = 4. # active insulin time
+        self.I0Est = 0.
         self.I0 = 0.
         self.C = 0.
         self.RIC = 0.
         self.Registered = None
+        #
+        self.BWZCorrectionEstimate = 0.
+        self.BWZFoodEstimate = 0.
+        self.BWZActiveInsulin = 0.
+        self.BWZBGInput = 0.
+        self.BWZMatchedDelivered = True
         return
 
     def getEffectiveSensitivity(self,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
@@ -1057,5 +1142,18 @@ class BGFunction :
         print 'Reg  ',self.Registered
 
         return
-                
+
+    def PrintBolus(self) :
+        s = self.S
+        f = self.RIC
+        star = ' *' if not self.BWZMatchedDelivered else ''
+        print 'Bolus, %s (input BG: %d mg/dl) (S=%d)'%(t.StringFromTime(self.iov_0),self.BWZBGInput,s)
+        print '  Total Delivered BS : %2.1f u;'%(self.I0                   )+(' %2.1f mg/dl'%(self.I0                   *s)).rjust(15)+(' %2.1f g'%(self.I0                   *f)).rjust(15)+star
+        print '  Total Suggested BS : %2.1f u;'%(self.I0Est                )+(' %2.1f mg/dl'%(self.I0Est                *s)).rjust(15)+(' %2.1f g'%(self.I0Est                *f)).rjust(15)
+        print '                food : %2.1f u;'%(self.BWZFoodEstimate      )+(' %2.1f mg/dl'%(self.BWZFoodEstimate      *s)).rjust(15)+(' %2.1f g'%(self.BWZFoodEstimate      *f)).rjust(15)
+        print '          correction : %2.1f u;'%(self.BWZCorrectionEstimate)+(' %2.1f mg/dl'%(self.BWZCorrectionEstimate*s)).rjust(15)+(' %2.1f g'%(self.BWZCorrectionEstimate*f)).rjust(15)
+        print '              active : %2.1f u;'%(self.BWZActiveInsulin     )+(' %2.1f mg/dl'%(self.BWZActiveInsulin     *s)).rjust(15)+(' %2.1f g'%(self.BWZActiveInsulin     *f)).rjust(15)
+        #print color.BOLD + 'Hello World !' + color.END
+        return
+
 c = WeekPlot()
