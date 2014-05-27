@@ -2,7 +2,7 @@
 from ROOT import TFile,TGraph,TCanvas,gROOT,gDirectory,TH1F,TH2F,TF1,kGray,kBlack,gStyle,TGraphAsymmErrors
 from PlotUtils import SmartPlot,color,markerstyles
 from array import array
-from PyBGSuggestHelpers import TimeClass,color
+from PyBGSuggestHelpers import TimeClass,UNIXcolor
 t = TimeClass()
 import rootlogon
 rootlogon.set_palette('Higgs')
@@ -1153,7 +1153,7 @@ class BGFunction :
         print '                food : %2.1f u;'%(self.BWZFoodEstimate      )+(' %2.1f mg/dl'%(self.BWZFoodEstimate      *s)).rjust(15)+(' %2.1f g'%(self.BWZFoodEstimate      *f)).rjust(15)
         print '          correction : %2.1f u;'%(self.BWZCorrectionEstimate)+(' %2.1f mg/dl'%(self.BWZCorrectionEstimate*s)).rjust(15)+(' %2.1f g'%(self.BWZCorrectionEstimate*f)).rjust(15)
         print '              active : %2.1f u;'%(self.BWZActiveInsulin     )+(' %2.1f mg/dl'%(self.BWZActiveInsulin     *s)).rjust(15)+(' %2.1f g'%(self.BWZActiveInsulin     *f)).rjust(15)
-        #print color.BOLD + 'Hello World !' + color.END
+        #print UNIXcolor.BOLD + 'Hello World !' + color.END
         return
 
 c = WeekPlot()
