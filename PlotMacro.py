@@ -11,7 +11,7 @@ gStyle.SetCanvasDefH(500)
 import time
 import math
 
-NWEEKS = 104
+NWEEKS = 130
 
 ADA = False
 KURT = True
@@ -153,6 +153,16 @@ class WeekPlot :
                     rolling_insulin = 90.
                 if week_in_question == 63 : # purchased on March 5; accounting on March 19
                     rolling_bgs      = 270./10.
+                if week_in_question == 68 : # April 9
+                    rolling_bgs     += 500./10.
+                if week_in_question == 80 : # July 11
+                    rolling_bgs     += 400./10.
+                    rolling_insulin += 60.
+                if week_in_question == 82 : # July 25
+                    rolling_rewinds += 50.
+                if week_in_question == 88 : # purchased Sept 11; accounting on Sept 16
+                    rolling_bgs      = 800./10. 
+                    rolling_insulin += 90. # not sure how much was actually picked up. Sept 11 email.
                 supplies_histo.SetBinContent(week_in_question+1,rolling_rewinds)
                 strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
                 insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
@@ -272,6 +282,9 @@ class WeekPlot :
         # april
         a1x.append(t.GetWeekOfYear(t.TimeFromString('04/08/14 04:00:00')))
         a1y.append(self.a1cToBS(7.3)[0])
+        # december 2014
+        a1x.append(t.GetWeekOfYear(t.TimeFromString('12/16/14 04:00:00')))
+        a1y.append(self.a1cToBS(7.4)[0])
         #
         x_a1 = array('d',a1x)
         y_a1 = array('d',a1y)
