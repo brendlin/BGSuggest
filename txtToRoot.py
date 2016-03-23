@@ -37,6 +37,9 @@ tree = ROOT.TTree("Tree Name","Tree Description")
 s = ROOT.bgrootstruct()
 #tree._s = s
 
+basal_histograms = []
+sensi_histograms = []
+
 tree.Branch("Index"                  ,ROOT.AddressOf(s,"Index"                  ),"Index"                  +"/I")
 tree.Branch("Date"                   ,ROOT.AddressOf(s,"Date"                   ),"Date"                   +"/C") ###
 tree.Branch("Time"                   ,ROOT.AddressOf(s,"Time"                   ),"Time"                   +"/C") ###
@@ -86,6 +89,19 @@ tree.Branch("DayOfWeekFromMonday"    ,ROOT.AddressOf(s,"DayOfWeekFromMonday"    
 tree.Branch("HourOfDayFromFourAM"    ,ROOT.AddressOf(s,"HourOfDayFromFourAM"    ),"HourOfDayFromFourAM"    +'/I')
 tree.Branch("TimeOfDayFromFourAM"    ,ROOT.AddressOf(s,"TimeOfDayFromFourAM"    ),"TimeOfDayFromFourAM"    +'/F')
 
+rootfile_all = TFile('output_all.root','RECREATE')
+tree2 = ROOT.TTree("LongTerm","LongTerm")
+s2 = ROOT.bgrootstruct()
+
+tree2.Branch("UniversalTime"          ,ROOT.AddressOf(s2,"UniversalTime"          ),"UniversalTime"          +"/l")
+tree2.Branch("BGReading"              ,ROOT.AddressOf(s2,"BGReading"              ),"BGReading"              +"/I")
+tree2.Branch("WeekOfYear"             ,ROOT.AddressOf(s2,"WeekOfYear"             ),"WeekOfYear"             +'/I') # First week of the year is short
+tree2.Branch("BWZCarbInput"           ,ROOT.AddressOf(s2,"BWZCarbInput"           ),"BWZCarbInput"           +"/I")
+tree2.Branch("Rewind"                 ,ROOT.AddressOf(s2,"Rewind"                 ),"Rewind"                 +"/I") # Changed
+
+import time
+time_right_now = long(time.time())
+
 for inputfilename in inputfilenames :
 
     inputfile = open(inputfilename,'r')
@@ -99,9 +115,14 @@ for inputfilename in inputfilenames :
         linevector = line.split(',')
         if len(linevector)<20:
             continue
+
         for iter in range(len(linevector)):
             if len(linevector) == iter:
                 break
+            #
+            # Condense everything in quotes into one line item.
+            # Wow I was bad at coding.
+            #
             if linevector[iter].find('\"') == 0:
                 while True:
                     if linevector[iter+1].find('\"') > 0:
@@ -115,6 +136,43 @@ for inputfilename in inputfilenames :
             if linevector[iter] == '' and isNumber[iter]:
                 linevector[iter] = -1
             #
+
+
+        #
+        # Collect basal information
+        #
+        if linevector[33] == 'ChangeBasalProfile' :
+            this_basal = None
+            for h_basal in basal_histograms :
+                if linevector[3] in h_basal.GetName() :
+                    this_basal = h_basal
+            if not this_basal :
+                basal_histograms.append(ROOT.TH1F('Basal '+linevector[3],linevector[3],48,0,24))
+                this_basal = basal_histograms[-1]
+            # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
+            start_time = int(2*int(linevector[34].split()[3].replace('START_TIME=',''))/3600000)
+            rate = float(linevector[34].split()[2].replace('RATE=',''))
+            this_basal.SetBinContent(start_time+1,rate)
+
+        #
+        # Collect sensitivity information
+        #
+        if linevector[33] == 'ChangeInsulinSensitivity' :
+            this_sensi = None
+            for h_sensi in sensi_histograms :
+                if linevector[3] in h_sensi.GetName() :
+                    this_sensi = h_sensi
+            if not this_sensi :
+                sensi_histograms.append(ROOT.TH1F('Sensitivity '+linevector[3],linevector[3],48,0,24))
+                this_sensi = sensi_histograms[-1]
+            # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
+            start_time = int(2*int(linevector[34].split()[3].replace('START_TIME=',''))/3600000)
+            rate = float(linevector[34].split()[2].replace('AMOUNT=',''))
+            this_sensi.SetBinContent(start_time+1,rate)
+
+        #
+        # The standard data collection.
+        #
         if len(linevector) == 39 and linevector[0] != "Index":
             s.Index = int(linevector[0])
             #print type(s.Index)
@@ -123,9 +181,37 @@ for inputfilename in inputfilenames :
             s.Timestamp               = linevector[3]
             #s.UniversalTime           = long(time.mktime(time.strptime(linevector[3], "%m/%d/%y %H:%M:%S")))
             s.UniversalTime           = MyTime.TimeFromString(linevector[3])
+
             #
+            # We take only the "BGReceived" BG data, to avoid double-counting.
+            # linevector[5] = BGReading and linevector[6] = LinkedBGMeterID
             #
+            if int(linevector[5]) > 0 and (not str(linevector[6])) :
+                continue
+
             #
+            # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
+            # The text field is linevector[33]
+#             if 'JournalEntryMealMarker' in linevector[33] :
+#                 print 'JournalEntryMealMarker'
+#                 linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0]
+
+            #
+            # For the Year-In-Review plot
+            #
+            s2.UniversalTime = MyTime.TimeFromString(linevector[3])
+            s2.BGReading  = int(linevector[5])
+            s2.WeekOfYear = MyTime.GetWeekOfYear(s.UniversalTime)
+            s2.BWZCarbInput = int(linevector[23])
+            s2.Rewind = 1 if linevector[17] else 0
+
+            if s2.BGReading > 0 or s2.BWZFoodEstimate > 0 or s2.Rewind :
+                tree2.Fill()
+
+            print '%s %d \r'%(MyTime.StringFromTime(s.UniversalTime),MyTime.WeeksOld(s.UniversalTime)),
+            if MyTime.WeeksOld(s.UniversalTime) > 4 :
+                continue
+
             s.WeekOfYear              = MyTime.GetWeekOfYear(s.UniversalTime)
             s.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(s.UniversalTime)
             s.HourOfDayFromFourAM     = MyTime.GetHourOfDay(s.UniversalTime)
@@ -169,7 +255,11 @@ for inputfilename in inputfilenames :
             s.RawUploadID             = long(linevector[36])
             s.RawSeqNum               = long(linevector[37])
             s.RawDeviceType           = linevector[38]
+
             tree.Fill()    
 
 rootfile.Write()
 rootfile.Close()
+
+rootfile_all.Write()
+rootfile_all.Close()
