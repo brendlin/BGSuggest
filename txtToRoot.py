@@ -39,6 +39,7 @@ s = ROOT.bgrootstruct()
 
 basal_histograms = []
 sensi_histograms = []
+ric_histograms = []
 
 tree.Branch("Index"                  ,ROOT.AddressOf(s,"Index"                  ),"Index"                  +"/I")
 tree.Branch("Date"                   ,ROOT.AddressOf(s,"Date"                   ),"Date"                   +"/C") ###
@@ -102,6 +103,17 @@ tree2.Branch("Rewind"                 ,ROOT.AddressOf(s2,"Rewind"               
 import time
 time_right_now = long(time.time())
 
+def GetFromHistogram(hist,hour) :
+    #print 'time of day from midnight is',hour
+    iterator = 0.
+    while True :
+        result = hist.GetBinContent(hist.FindBin(hour-iterator))
+        #print 'hour:',hour,'iterator:',iterator,'bin:',hist.FindBin(hour-iterator),'result:',result
+        if result > 0 :
+            return result
+        iterator += 0.5
+    return 0
+
 for inputfilename in inputfilenames :
 
     inputfile = open(inputfilename,'r')
@@ -157,7 +169,7 @@ for inputfilename in inputfilenames :
         #
         # Collect sensitivity information
         #
-        if linevector[33] == 'ChangeInsulinSensitivity' :
+        if linevector[33] == 'ChangeInsulinSensitivity' or linevector[33] == 'CurrentInsulinSensitivity' :
             this_sensi = None
             for h_sensi in sensi_histograms :
                 if linevector[3] in h_sensi.GetName() :
@@ -169,6 +181,22 @@ for inputfilename in inputfilenames :
             start_time = int(2*int(linevector[34].split()[3].replace('START_TIME=',''))/3600000)
             rate = float(linevector[34].split()[2].replace('AMOUNT=',''))
             this_sensi.SetBinContent(start_time+1,rate)
+
+        #
+        # Collect insulin-carb ratios
+        #
+        if linevector[33] == 'CurrentCarbRatio' or linevector[33] == 'ChangeCarbRatio' :
+            this_ric = None
+            for h_ric in ric_histograms :
+                if linevector[3] in h_ric.GetName() :
+                    this_ric = h_ric
+            if not this_ric :
+                ric_histograms.append(ROOT.TH1F('RIC '+linevector[3],linevector[3],48,0,24))
+                this_ric = ric_histograms[-1]
+            # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
+            start_time = int(2*int(linevector[34].split()[4].replace('START_TIME=',''))/3600000)
+            ric = float(linevector[34].split()[2].replace('AMOUNT=',''))
+            this_ric.SetBinContent(start_time+1,ric)
 
         #
         # The standard data collection.
@@ -192,9 +220,18 @@ for inputfilename in inputfilenames :
             #
             # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
             # The text field is linevector[33]
-#             if 'JournalEntryMealMarker' in linevector[33] :
-#                 print 'JournalEntryMealMarker'
-#                 linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0]
+            if 'JournalEntryMealMarker' in linevector[33] :
+                print 'JournalEntryMealMarker'
+                linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0]
+                if not sensi_histograms :
+                    print 'warning! No sensitivity on record!'
+                elif not ric_histograms :
+                    print 'warning! No insulin-carb ratio on record!'
+                print 'time:',linevector[3]
+                # carb ratio:
+                linevector[21] = GetFromHistogram(ric_histograms[-1],MyTime.GetTimeOfDayFromMidnight(s.UniversalTime))
+                # sensitivity:
+                linevector[22] = GetFromHistogram(sensi_histograms[-1],MyTime.GetTimeOfDayFromMidnight(s.UniversalTime))
 
             #
             # For the Year-In-Review plot
