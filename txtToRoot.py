@@ -104,14 +104,19 @@ import time
 time_right_now = long(time.time())
 
 def GetFromHistogram(hist,hour) :
-    #print 'time of day from midnight is',hour
+    #print 'time of day from 4am is',hour
+    # convert to bins - because these histograms go from 0 to 24.
     iterator = 0.
     while True :
-        result = hist.GetBinContent(hist.FindBin(hour-iterator))
+        bin = hist.FindBin(hour-iterator)
+        if bin == 0 :
+            iterator -= 24
+        result = hist.GetBinContent(bin)
         #print 'hour:',hour,'iterator:',iterator,'bin:',hist.FindBin(hour-iterator),'result:',result
         if result > 0 :
             return result
         iterator += 0.5
+
     return 0
 
 for inputfilename in inputfilenames :
@@ -160,41 +165,53 @@ for inputfilename in inputfilenames :
                     this_basal = h_basal
             if not this_basal :
                 basal_histograms.append(ROOT.TH1F('Basal '+linevector[3],linevector[3],48,0,24))
+                basal_histograms[-1].SetDirectory(0)
                 this_basal = basal_histograms[-1]
             # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
             start_time = int(2*int(linevector[34].split()[3].replace('START_TIME=',''))/3600000)
+            start_time = start_time - 8 # half hour increments
+            if start_time < 0 :
+                start_time = start_time + 48 # half hour increments
             rate = float(linevector[34].split()[2].replace('RATE=',''))
             this_basal.SetBinContent(start_time+1,rate)
 
         #
         # Collect sensitivity information
         #
-        if linevector[33] == 'ChangeInsulinSensitivity' or linevector[33] == 'CurrentInsulinSensitivity' :
+        if linevector[33] == 'ChangeInsulinSensitivity' :
             this_sensi = None
             for h_sensi in sensi_histograms :
                 if linevector[3] in h_sensi.GetName() :
                     this_sensi = h_sensi
             if not this_sensi :
                 sensi_histograms.append(ROOT.TH1F('Sensitivity '+linevector[3],linevector[3],48,0,24))
+                sensi_histograms[-1].SetDirectory(0)
                 this_sensi = sensi_histograms[-1]
             # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
             start_time = int(2*int(linevector[34].split()[3].replace('START_TIME=',''))/3600000)
+            start_time = start_time - 8 # half hour increments
+            if start_time < 0 :
+                start_time = start_time + 48 # half hour increments
             rate = float(linevector[34].split()[2].replace('AMOUNT=',''))
             this_sensi.SetBinContent(start_time+1,rate)
 
         #
         # Collect insulin-carb ratios
         #
-        if linevector[33] == 'CurrentCarbRatio' or linevector[33] == 'ChangeCarbRatio' :
+        if linevector[33] == 'ChangeCarbRatio' :
             this_ric = None
             for h_ric in ric_histograms :
                 if linevector[3] in h_ric.GetName() :
                     this_ric = h_ric
             if not this_ric :
                 ric_histograms.append(ROOT.TH1F('RIC '+linevector[3],linevector[3],48,0,24))
+                ric_histograms[-1].SetDirectory(0)
                 this_ric = ric_histograms[-1]
             # PATTERN_DATUM_ID=15906088830 PROFILE_INDEX=11 RATE=0.9 START_TIME=79200000
             start_time = int(2*int(linevector[34].split()[4].replace('START_TIME=',''))/3600000)
+            start_time = start_time - 8 # half hour increments
+            if start_time < 0 :
+                start_time = start_time + 48 # half hour increments
             ric = float(linevector[34].split()[2].replace('AMOUNT=',''))
             this_ric.SetBinContent(start_time+1,ric)
 
@@ -229,9 +246,9 @@ for inputfilename in inputfilenames :
                     print 'warning! No insulin-carb ratio on record!'
                 print 'time:',linevector[3]
                 # carb ratio:
-                linevector[21] = GetFromHistogram(ric_histograms[-1],MyTime.GetTimeOfDayFromMidnight(s.UniversalTime))
+                linevector[21] = GetFromHistogram(ric_histograms[-1],MyTime.GetTimeOfDay(s.UniversalTime))
                 # sensitivity:
-                linevector[22] = GetFromHistogram(sensi_histograms[-1],MyTime.GetTimeOfDayFromMidnight(s.UniversalTime))
+                linevector[22] = GetFromHistogram(sensi_histograms[-1],MyTime.GetTimeOfDay(s.UniversalTime))
 
             #
             # For the Year-In-Review plot
@@ -294,6 +311,16 @@ for inputfilename in inputfilenames :
             s.RawDeviceType           = linevector[38]
 
             tree.Fill()    
+
+basal_histograms.reverse()
+sensi_histograms.reverse()
+ric_histograms.reverse()
+
+for i in (basal_histograms + sensi_histograms + ric_histograms) :
+    rootfile.cd()
+    i.Write()
+    rootfile_all.cd()
+    i.Write()
 
 rootfile.Write()
 rootfile.Close()
