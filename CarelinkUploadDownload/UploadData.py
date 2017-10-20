@@ -26,7 +26,7 @@ ourEvent = CGEventCreate(None);
 currentpos = CGEventGetLocation(ourEvent); # Save current mouse position
 
 # Prepare the browser, and then ask the user if he's ready for an upload.
-if os.system('''osascript PrepareBrowserForUpload.scpt''') :
+if os.system('''osascript PrepareBrowserUpload.scpt''') :
     print 'Okay. Not uploading.'
     sys.exit()
 
