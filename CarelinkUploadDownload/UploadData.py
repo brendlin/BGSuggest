@@ -7,23 +7,23 @@ import Quartz.CoreGraphics
 import time
 
 def mouseEvent(type, posx, posy,pid=''):
-    theEvent = CGEventCreateMouseEvent(None, type, (posx,posy), kCGMouseButtonLeft)
+    theEvent = Quartz.CoreGraphics.CGEventCreateMouseEvent(None, type, (posx,posy), Quartz.CoreGraphics.kCGMouseButtonLeft)
     if pid :
         # This will fail.
         Quartz.CGEventPostToPid(pid, theEvent)
     else :
-        Quartz.CoreGraphics.CGEventPost(kCGHIDEventTap, theEvent)
+        Quartz.CoreGraphics.CGEventPost(Quartz.CoreGraphics.kCGHIDEventTap, theEvent)
 
 def mousemove(posx,posy,pid=''):
-    mouseEvent(kCGEventMouseMoved, posx,posy,pid);
+    mouseEvent(Quartz.CoreGraphics.kCGEventMouseMoved, posx,posy,pid);
 
 def mouseclick(posx,posy,pid=''):
-    mouseEvent(kCGEventLeftMouseDown, posx,posy,pid);
+    mouseEvent(Quartz.CoreGraphics.kCGEventLeftMouseDown, posx,posy,pid);
     time.sleep(0.1)
-    mouseEvent(kCGEventLeftMouseUp, posx,posy,pid);
+    mouseEvent(Quartz.CoreGraphics.kCGEventLeftMouseUp, posx,posy,pid);
 
-ourEvent = CGEventCreate(None);
-currentpos = CGEventGetLocation(ourEvent); # Save current mouse position
+ourEvent = Quartz.CoreGraphics.CGEventCreate(None);
+currentpos = Quartz.CoreGraphics.CGEventGetLocation(ourEvent); # Save current mouse position
 
 # Prepare the browser, and then ask the user if he's ready for an upload.
 if os.system('''osascript PrepareBrowserUpload.scpt''') :
