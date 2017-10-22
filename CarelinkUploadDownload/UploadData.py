@@ -22,28 +22,35 @@ def mouseclick(posx,posy,pid=''):
     time.sleep(0.1)
     mouseEvent(Quartz.CoreGraphics.kCGEventLeftMouseUp, posx,posy,pid);
 
-ourEvent = Quartz.CoreGraphics.CGEventCreate(None);
-currentpos = Quartz.CoreGraphics.CGEventGetLocation(ourEvent); # Save current mouse position
+def UploadData() :
 
-# Prepare the browser, and then ask the user if he's ready for an upload.
-if os.system('''osascript PrepareBrowserUpload.scpt''') :
-    print 'Okay. Not uploading.'
-    sys.exit()
+    ourEvent = Quartz.CoreGraphics.CGEventCreate(None);
+    currentpos = Quartz.CoreGraphics.CGEventGetLocation(ourEvent); # Save current mouse position
 
-# Do the quick clicks!
-os.system('''/usr/bin/osascript -e 'tell application "Safari" to activate' ''')
-time.sleep(0.1)
-for i in range(5) :
-    mouseclick(500,620)
-mouseclick(570,620)
+    # Prepare the browser, and then ask the user if he's ready for an upload.
+    if os.system('''osascript PrepareBrowserUpload.scpt''') :
+        # print 'Okay. Not uploading.'
+        return False
 
-# Move everything back in place.
-os.system('''/usr/bin/osascript -e 'tell application "System Events" to keystroke tab using command down' ''')
-mousemove(int(currentpos.x),int(currentpos.y)); # Restore mouse position
+    # Do the quick clicks!
+    os.system('''/usr/bin/osascript -e 'tell application "Safari" to activate' ''')
+    time.sleep(0.1)
+    for i in range(5) :
+        mouseclick(500,620)
+    mouseclick(570,620)
 
-# Quit; notify user that we are done.
-time.sleep(720)
-os.system('''/usr/bin/osascript -e 'tell application "Safari" \n quit \n end tell" ''')
-os.system('''/usr/bin/osascript -e 'display notification "You have an updated BG thingy."' ''')
+    # Move everything back in place.
+    os.system('''/usr/bin/osascript -e 'tell application "System Events" to keystroke tab using command down' ''')
+    mousemove(int(currentpos.x),int(currentpos.y)); # Restore mouse position
 
-print 'finished.'
+    # Wait. Hard to get around this.
+    time.sleep(720)
+
+    # Quit; notify user that we are done.
+    os.system('''/usr/bin/osascript -e 'tell application "Safari" \n quit \n end tell' ''')
+    os.system('''/usr/bin/osascript -e 'display notification "New data (probably) uploaded."' ''')
+
+    return True
+
+if __name__ == "__main__":
+    UploadData()
