@@ -6,6 +6,7 @@ import PlotFunctions as plotfunc
 from SampleEarlyBolus import SampleEarlyBolus
 from SuppliesSummary import SuppliesSummary
 from PyBGSuggestHelpers import PredictionCanvas
+import datetime
 
 def main(options,args) :
 
@@ -62,6 +63,7 @@ if __name__ == '__main__':
     p.add_option('--f' ,action='store_true',default=False,dest='f' ,help='Friday')
     p.add_option('--s' ,action='store_true',default=False,dest='s' ,help='Saturday')
     p.add_option('--su',action='store_true',default=False,dest='su',help='Sunday')
+    p.add_option('--today',action='store_true',default=False,dest='today',help='Sunday')
     p.add_option('--week',type='int',default=0,dest='week',help='Number of weeks ago (0)')
     options,args = p.parse_args()
 
@@ -73,6 +75,10 @@ if __name__ == '__main__':
     if options.f  : options.day_of_week = 4
     if options.s  : options.day_of_week = 5
     if options.su : options.day_of_week = 6
+
+    if options.today :
+        options.day_of_week = datetime.date.today().weekday()
+        print options.day_of_week
 
     if options.detailed and options.day_of_week < 0 :
         print 'Error! Please specify day (e.g. --m). Exiting.'
