@@ -50,5 +50,9 @@ struct bgrootstruct{
   Int_t       DayOfWeekFromMonday    ;
   Float_t     TimeOfDayFromFourAM    ;
   Int_t       HourOfDayFromFourAM    ;
+  Float_t     RecentSensorISIG       ;
+  Int_t       RecentSensorGlucose    ;
+  Float_t     MARD                   ;
+  Float_t     SensorAgeDays          ;
 };
 

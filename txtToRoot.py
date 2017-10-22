@@ -41,6 +41,14 @@ basal_histograms = []
 sensi_histograms = []
 ric_histograms = []
 
+##
+## Stuff for studing MARD and stuff.
+##
+sensor_age_utc = 0
+sensor_isig_age = 0
+sensor_isig = -1
+sensor_bg = -1
+
 tree.Branch("Index"                  ,ROOT.AddressOf(s,"Index"                  ),"Index"                  +"/I")
 tree.Branch("Date"                   ,ROOT.AddressOf(s,"Date"                   ),"Date"                   +"/C") ###
 tree.Branch("Time"                   ,ROOT.AddressOf(s,"Time"                   ),"Time"                   +"/C") ###
@@ -99,6 +107,9 @@ tree2.Branch("BGReading"              ,ROOT.AddressOf(s2,"BGReading"            
 tree2.Branch("WeekOfYear"             ,ROOT.AddressOf(s2,"WeekOfYear"             ),"WeekOfYear"             +'/I') # First week of the year is short
 tree2.Branch("BWZCarbInput"           ,ROOT.AddressOf(s2,"BWZCarbInput"           ),"BWZCarbInput"           +"/I")
 tree2.Branch("Rewind"                 ,ROOT.AddressOf(s2,"Rewind"                 ),"Rewind"                 +"/I") # Changed
+tree2.Branch("RecentSensorISIG"       ,ROOT.AddressOf(s2,"RecentSensorISIG"       ),"RecentSensorISIG"       +"/F")
+tree2.Branch("MARD"                   ,ROOT.AddressOf(s2,"MARD"                   ),"MARD"                   +"/F")
+tree2.Branch("SensorAgeDays"          ,ROOT.AddressOf(s2,"SensorAgeDays"          ),"SensorAgeDays"          +"/F")
 
 import time
 time_right_now = long(time.time())
@@ -238,13 +249,13 @@ for inputfilename in inputfilenames :
             # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
             # The text field is linevector[33]
             if 'JournalEntryMealMarker' in linevector[33] :
-                print 'JournalEntryMealMarker'
+                #print 'JournalEntryMealMarker'
                 linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0]
                 if not sensi_histograms :
                     print 'warning! No sensitivity on record!'
                 elif not ric_histograms :
                     print 'warning! No insulin-carb ratio on record!'
-                print 'time:',linevector[3]
+                #print 'time:',linevector[3]
                 # carb ratio:
                 linevector[21] = GetFromHistogram(ric_histograms[-1],MyTime.GetTimeOfDay(s.UniversalTime))
                 # sensitivity:
@@ -259,9 +270,41 @@ for inputfilename in inputfilenames :
             s2.BWZCarbInput = int(linevector[23])
             s2.Rewind = 1 if linevector[17] else 0
 
+            #
+            # get new sensor time (UTC) - for cumulative plots
+            #
+            if 'SensorSync' in linevector[33] and 'SYNC_TYPE=new' in linevector[34] :
+                sensor_age_utc = s.UniversalTime
+            #
+            # temporarily store last sensor measurement
+            #
+            if 'GlucoseSensorData' in linevector[33] :
+               sensor_isig_age = s.UniversalTime
+               sensor_isig = float(linevector[31])
+               sensor_bg = int(linevector[30])
+
+            #
+            # s2.BGReading > 0
+            #
+            if s2.BGReading > 0 and ((s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute) <= 5.) :
+                #print 'age:',(s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute),
+                #print 'isig:',sensor_isig,'bg:',sensor_bg
+                s2.RecentSensorISIG = sensor_isig
+                s2.RecentSensorGlucose = sensor_bg
+                s2.MARD = (sensor_bg - s2.BGReading)/float(s2.BGReading)
+                s2.SensorAgeDays = (s.UniversalTime-sensor_age_utc)/float(MyTime.OneDay)
+            else :
+                s2.RecentSensorISIG = -1.
+                s2.RecentSensorGlucose = -1
+                s2.MARD = -100.
+                s2.SensorAgeDays = -1.
+
             if s2.BGReading > 0 or s2.BWZFoodEstimate > 0 or s2.Rewind :
                 tree2.Fill()
 
+            #
+            # If it's older than 4 weeks old, do not do a detailed review.
+            #
             print '%s %d \r'%(MyTime.StringFromTime(s.UniversalTime),MyTime.WeeksOld(s.UniversalTime)),
             if MyTime.WeeksOld(s.UniversalTime) > 4 :
                 continue
