@@ -1,7 +1,8 @@
 from PlotMacro import WeekPlot,t,BGFunction
 import ROOT
 from YearInReview import YearInReview
-import pennSoftLepton.PlotFunctions as plotfunc
+from IsigStudy import IsigStudy
+import PlotFunctions as plotfunc
 from SampleEarlyBolus import SampleEarlyBolus
 from SuppliesSummary import SuppliesSummary
 from PyBGSuggestHelpers import PredictionCanvas
@@ -33,6 +34,8 @@ def main(options,args) :
         canvases.append(SampleEarlyBolus())
     if False :
         rewind,supplies,test_frequency = SuppliesSummary(e)
+    if options.isig :
+        canvases.append(IsigStudy(e))
     
     
     raw_input('Pausing. Press enter to exit.')
@@ -50,6 +53,7 @@ if __name__ == '__main__':
     p.add_option('--detailed',action='store_true',default=False,dest='detailed',help='save cans to pdf')
     p.add_option('--overview',action='store_true',default=False,dest='overview',help='save cans to pdf')
     p.add_option('--yir',action='store_true',default=False,dest='yir',help='save cans to pdf')
+    p.add_option('--isig',action='store_true',default=False,dest='isig',help='save cans to pdf')
     p.add_option('--example',action='store_true',default=False,dest='example',help='save cans to pdf')
     p.add_option('--m' ,action='store_true',default=False,dest='m' ,help='Monday')
     p.add_option('--t' ,action='store_true',default=False,dest='t' ,help='Tuesday')
