@@ -13,6 +13,13 @@ on WaitUntilSafariWindowHasLoaded()
     end tell
 end WaitUntilSafariWindowHasLoaded
 
+-- Clear all the windows.
+tell application "Safari"
+    close every window
+end tell
+
+delay 3
+
 tell application "Safari" to open location "https://carelink.minimed.com"
 
 WaitUntilSafariWindowHasLoaded()

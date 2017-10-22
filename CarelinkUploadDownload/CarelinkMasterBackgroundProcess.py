@@ -27,7 +27,10 @@ while True :
             continue
 
         # Run the upload and the download
-        UploadData()
+        if not UploadData() :
+            print 'User canceled.'
+            last_upload = time.time()
+            continue
 
         # Run the download
         today = datetime.date.today()

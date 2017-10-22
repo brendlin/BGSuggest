@@ -36,8 +36,8 @@ def UploadData() :
     os.system('''/usr/bin/osascript -e 'tell application "Safari" to activate' ''')
     time.sleep(0.1)
     for i in range(5) :
-        mouseclick(500,620)
-    mouseclick(570,620)
+        mouseclick(500,605)
+    mouseclick(570,605)
 
     # Move everything back in place.
     os.system('''/usr/bin/osascript -e 'tell application "System Events" to keystroke tab using command down' ''')
