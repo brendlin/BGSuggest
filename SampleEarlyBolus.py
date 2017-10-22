@@ -1,5 +1,5 @@
-import pennSoftLepton.PlotFunctions as plotfunc
-import pennSoftLepton.TAxisFunctions as taxisfunc
+import PlotFunctions as plotfunc
+import TAxisFunctions as taxisfunc
 from PyBGSuggestHelpers import TimeClass,BGFunction,PredictionPlots,GetIntegratedAverage,GetHistWithTimeAxis
 import ROOT
 

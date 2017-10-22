@@ -1,15 +1,34 @@
 #!/usr/bin/env python
+import ROOT
 from ROOT import TF1,TH1F,gROOT
-from PlotUtils import SmartPlot
+import PlotFunctions as plotfunc
+import TAxisFunctions as taxisfunc
 
-import rootlogon
-rootlogon.set_palette('Higgs')
+# import rootlogon
+# rootlogon.set_palette('Higgs')
 gROOT.SetBatch(False)
+plotfunc.SetupStyle()
 
 aa= []
 
 absorption = TF1('Insulin Absorption','1-(0.05)^((x/4.)^2) * (x<6)',0,6)
 aa.append(absorption)
+
+absorption_1 = TF1('Insulin Absorption','(0.05)^((x/2.)^2) * (x<9)',0,2.5)
+absorption_2 = TF1('Insulin Absorption','(0.05)^((x/3.)^2) * (x<9)',0,3.5)
+absorption_3 = TF1('Insulin Absorption','(0.05)^((x/4.)^2) * (x<9)',0,4.5)
+absorption_4 = TF1('Insulin Absorption','(0.05)^((x/5.)^2) * (x<9)',0,5.5)
+absorption_5 = TF1('Insulin Absorption','(0.05)^((x/6.)^2) * (x<9)',0,6.5)
+absorption_6 = TF1('Insulin Absorption','(0.05)^((x/7.)^2) * (x<9)',0,7.5)
+absorption_7 = TF1('Insulin Absorption','(0.05)^((x/8.)^2) * (x<9)',0,8.5)
+
+absorption_1.SetTitle('2 Hour')
+absorption_2.SetTitle('3 Hour')
+absorption_3.SetTitle('4 Hour')
+absorption_4.SetTitle('5 Hour')
+absorption_5.SetTitle('6 Hour')
+absorption_6.SetTitle('7 Hour')
+absorption_7.SetTitle('8 Hour')
 
 #
 # derivative
@@ -60,16 +79,46 @@ for i in range(integ.GetNbinsX()) :
     integ.SetBinContent(i+1,bg)
     ddx.SetBinContent(i+1,plus)
 
-sp = SmartPlot(0,'','Insulin Absorption test',[dummy,integ,ddx]+aa,drawopt='l')
-sp.plots[1].SetDrawOption('sames')
-sp.plots[2].SetDrawOption('sames')
+sp = ROOT.TCanvas('Insulin Absorption test','Insulin Absorption test',600,500)
+plotfunc.AddHistogram(sp,dummy,drawopt='l')
+plotfunc.AddHistogram(sp,integ,drawopt='l')
+plotfunc.AddHistogram(sp,ddx,drawopt='l')
+for a in aa :
+    plotfunc.AddHistogram(sp,a,drawopt='l')
 
-sp_prop = SmartPlot(0,'','Insulin Absorption',[absorption,absorption_rate],drawopt='l',canw=600,canh=450)
-sp_prop.SetAxisLabels('Time (hours)','I/I_{0}')
-sp_prop.plots[0].GetYaxis().SetRangeUser(0,1.3)
-#sp_prop.DrawVertical(4)
-#sp_prop.DrawHorizontal(0.95)
-sp_prop.recreateLegend(.2,.7,.7,.86)
+sp_prop = ROOT.TCanvas('Insulin Absorption','Insulin Absorption',600,450)
+plotfunc.AddHistogram(sp_prop,absorption,drawopt='l')
+plotfunc.AddHistogram(sp_prop,absorption_rate,drawopt='l')
+plotfunc.SetAxisLabels(sp_prop,'Time (hours)','I/I_{0}')
+taxisfunc.SetYaxisRanges(sp_prop,0,1.3)
+
+
+dummy = ROOT.TH1F('dummy','remove',10,-0.57,9.01)
+dummy.GetYaxis().SetRangeUser(-0.05,1.015)
+prop = ROOT.TCanvas('Insulin_Absorption','Insulin Absorption',781,545)
+prop.SetLeftMargin(0.17/2.)
+plotfunc.AddHistogram(prop,dummy)
+image = ROOT.TASImage('plots/curve.png')
+image.Draw('sames')
+plotfunc.AddHistogram(prop,absorption_1,'lsames')
+plotfunc.AddHistogram(prop,absorption_2,'lsames')
+plotfunc.AddHistogram(prop,absorption_3,'lsames')
+plotfunc.AddHistogram(prop,absorption_4,'lsames')
+plotfunc.AddHistogram(prop,absorption_5,'lsames')
+plotfunc.AddHistogram(prop,absorption_6,'lsames')
+plotfunc.AddHistogram(prop,absorption_7,'lsames')
+plotfunc.SetColors(prop)
+plotfunc.SetAxisLabels(prop,'Time (hours)','% Insulin Remaining')
+prop.GetPrimitive('Insulin_Absorption_dummy').GetYaxis().SetTitleOffset(0.9)
+prop.GetPrimitive('Insulin_Absorption_dummy').GetXaxis().SetTitleOffset(1.1)
+plotfunc.MakeLegend(prop,0.81,0.30,0.93,0.57)
+prop.RedrawAxis()
+prop.Modified()
+prop.Update()
+
+prop.Print('plots/%s.png'%(prop.GetName()))
+
+#plotfunc.AutoFixAxes(prop)
 
 # sp.can.cd()
 # b.Draw('sames')

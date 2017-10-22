@@ -1,6 +1,10 @@
 import sys
 import usb.core
 
+# Put the following lines in your bash_profile:
+# export PYTHONPATH=$PYTHONPATH:$HOME/pyusb-1.0.0rc1
+# export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$HOME/libusb/lib
+
 def CheckForUSB() :
  
     found = False

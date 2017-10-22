@@ -20,20 +20,22 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Scope of this document}
+\section{Introudction and scope of the document}
 
 The purpose of this document is to lay a basic foundation for a semi-automated fast-acting insulin 
 dosage suggestion system, based on personal data collected by the Minimed Paradigm insulin pump and 
-its associated blood glucose meter. By collecting and analyzing insulin dosages (including basal 
+its associated blood glucose meter and/or continuous glucose monitoring system.
+By collecting and analyzing insulin dosages (including basal
 rates, food boluses and correction boluses), food intake, and other behavioral information from a 
 specific user, the software (hereafter referred to as BGSuggest) will seek to suggest changes to 
 the user's insulin regime in as focused a manner as possible.
 
-While an idealized version of the software would require no additional feedback from the user other 
-than a dedicated log of food and insulin intake, it is expected that early versions of this software 
-will require the user to perform certain specific tasks (such as fasting basal tests).
+%%
+%%While an idealized version of the software would require no additional feedback from the user other
+%% than a dedicated log of food and insulin intake, it is expected that early versions of this software
+%% will require the user to perform certain specific tasks (such as fasting basal tests).
 
-Furthermore, it is anticipated that the software development will proceed in stages. In order to 
+It is anticipated that the software development will proceed in stages. In order to
 quickly produce results, a first tool will use aggregate information to make suggestions, in a 
 brute-force approach which ignores some nuances (Phase I). While this tool may be effective at 
 lowering average blood sugar rates, it is susceptible to the effects of localized events, including 
@@ -50,7 +52,7 @@ leave these ambiguities unresolved, and up to the discretion of the user.
 
 A third tool (Phase III) would attempt to solve this problem by attempting to minimize some 
 converging test statistic through varying the three dosage variables (basal, bolus, sensitivity). To 
-develop this tool, some truth studies may be helpful.
+develop this tool, some studies using simulated data may be helpful.
 
 Other related tools could be imagined, such as a tool to recognize trends in certain meal types (or 
 even a particular food) and suggest changes to carbohydrate estimation. These tools would require a 
@@ -67,43 +69,49 @@ balancing an maintaining blood sugar rates.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Phase 0 Software}
+\section{Precisely Predicting Blood Sugar Rise and Fall}
 
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[width=4.5in]{figures/example_weekly.pdf}
-\caption{An example scatter plot, with a coarse binning underneath, highlighting general trends in 
-blood sugar levels for one week. These plots are intended to catch large trends in insulin dosage 
-response.}
-\label{default}
-\end{center}
-\end{figure}
+\subsection{Formalism for developing predictive techniques}
 
-\subsection{Conversions, conventions and formulas}
+Predicting blood sugar trends can be an indespensible tool for improving blood sugar control.
+The medical dosage settings saved in the Medtronic insulin pump contain all the information
+needed to make such predictions, and the Bolus Wizard already uses some of this information to
+calculate boluses, corrections, and account for active insulin. Simply making this information
+more accessible to the user (and to the physician) can help make informed decisions on dosage
+changes.
 
-In the following, $U$ will refer to units of insulin; $S$ refers to sensitivity (in units of \sens).
+The three main physiological quantities that must be medically controlled are sensitivity to insulin
+($S$), insulin-carb ratio (\carbratio), and basal rate. All three can be related to absolute rise and
+fall of blood sugars. Converting all of these quantities into \mgdl unit equivalents is the first
+step in developing predictive blood sugar level trends. Table~\ref{table:quants} summarizes the
+quantities affecting blood sugar, and their relations.
 
 \begin{table}[htdp]
 \caption{Relevant Quantities}
 \begin{center}
-\begin{tabular}{|l|c|c|c|} \hline
-Quantity & Abbrev. & Unit & Conversion to \mgdl \\ \hline
-Measured blood sugar & $B_\text{meas}$ (or $B$) & \mgdl & - \\ \hline
-Sensitivity & $S$ & $\mgdl\over{U}$ & - \\ \hline
-Insulin-Carb Ratio & \carbratio & ${\text{g}\over U}$ & - \\ \hline
-Food (carbs) & $C_0$ & grams & $B_f=C_0\cdot S/\ric$ \\ \hline
-Active insulin time & $t_A$ & hours & - \\ \hline
-Basal Rate & \rbas & $\mgdl\over h$ & $B_\text{bas} = \rbas\cdot t$ \\ \hline
+\begin{tabular}{|l|c|c|c|c|} \hline
+Quantity             & Abbrev.                  & Type                   & Unit                & Conversion to \mgdl           \\ \hline
+Measured blood sugar & $B_\text{meas}$ (or $B$) & Input/Output           & \mgdl               & -                             \\ \hline
+Sensitivity          & $S$                      & Physiological Response & $\mgdl\over{U}$     & -                             \\ \hline
+Insulin              & $I_0$                    & Input                  & $U$                 & $\Delta B_{I} = S\cdot I_0$   \\ \hline
+Insulin-Carb Ratio   & \carbratio               & Physiological Response & ${\text{g}\over U}$ & -                             \\ \hline
+Active insulin time  & $t_A$                    & Physiological Response & hours               & -                             \\ \hline
+Basal Rate           & \rbas                    & Physiological Process  & $\mgdl\over h$      & $\Delta B_\text{bas} = \rbas\cdot t$ \\ \hline
+Food (carbs)         & $C_0$                    & Input                  & grams               & $\Delta B_f=C_0\cdot S/\ric$  \\ \hline
 \end{tabular}
 \end{center}
 \label{table:quants}
 \end{table}%
 
-In determining the insulin absorption function, several conditions must be met:
+\subsubsection{Time-dependent predictions}
+
+Modeling insulin absorption rates is crucial. Minimed claims its formula is proprietary, however the
+formula can be determined using a few simple assumptions.
+In determining the time-dependent insulin absorption function, several conditions must be met:
 \begin{enumerate}
-	\i At $t=0$, insulin is being rapidly absorbed.
-	\i At infinite time, no more insulin will be absorbed.
-	\i At $t=t_A$, all but 5\% of the insulin is absorbed.
+  \i At $t=0$, no insulin is being absorbed. Also the rate of absorption is zero.
+  \i At infinite time, no more insulin will be absorbed.
+  \i At $t=t_A$, all but 5\% of the insulin is absorbed.
 \end{enumerate}
 
 The last of these is chosen somewhat arbitrarily. The Minimed bolus wizard's ``active insulin time'' 
@@ -112,27 +120,29 @@ defines active insulin time, but the third condition is seen as a reasonable app
 theory, one could determine this by reverse-engineering the ``active insulin remaining'' detail in the 
 bolus wizard data.
 
-Then, given these conditions, the quick-and-dirty simplest formula is:
+Then, given these conditions, it takes a few guesses to arrive at a reasonable looking result.
+(Guess \#1: a decaying exponential. Guess \#2: something very close to a decaying exponential.) The
+formula is:
 \begin{equation}
 \frac{{I}(t)}{I_0} = 1 - 0.05^{\left({t\over{t_A}}\right)^2} 
 = 1-\exp\left( \ln(0.05)\cdot  \left({t\over{t_A}}\right)^2\right)
 \end{equation}
-
-Then
+where $I_0$ is the inital insulin bolus. Thus, $I(t)/I_0$ is the fractional amount of insulin absorbed
+at time $t$. Converting to $\Delta B_I$ by substituting in sensitivity, we can determine the blood
+sugar rise (fall) due to an insulin bolus:
 \begin{equation}
-{B_I}(t) = -S\cdot I_0\left( 1 - 0.05^{\left({t\over{t_A}}\right)^2} \right)
+{\Delta B_I}(t) = -S\cdot I_0\left( 1 - 0.05^{\left({t\over{t_A}}\right)^2} \right)
 \label{eq:insulin}
 \end{equation}
 
-Taking derivatives of this yields:
+Taking derivatives of this:
 \begin{equation}
 \pderiv{B_I}{t} = -6SI_0\frac t{t_A^2} 0.05^{\left(\frac t{t_A}\right)^2}
 \comma
 \pderiv{^2 B_I}{t^2} = SI_0\cdot0.05^{\left(\frac t{t_A}\right)^2}\left({36t^2\over t_A^4} - {6\over t_A^2} \right)
 \end{equation}
-Setting the 2nd derivative to 0, we can get the maximum $dB/dt$, $t\sim \frac {t_A}{\sqrt{6}}=1.63$ 
+and setting the 2nd derivative to 0, we can get the maximum $dB/dt$, $t\sim \frac {t_A}{\sqrt{6}}=1.63$
 hours for $t_A=4$ (at which point $dB/dt=0.37I_0$ u/hr), 0.81 hours for $t_A=2$. 
-
 Fig.~\ref{fig:absorption} shows the total absorption and $dB/dt$ of a typical ``4-hour'' insulin bolus.
 
 \begin{figure}[htbp]
@@ -145,14 +155,167 @@ the insulin is absorbed after 4 hours.}
 \end{center}
 \end{figure}
 
+We can compare our absorption curves to the insulin absorption rates quoted in Medtronic's Paradigm
+Insulin Pump User Guide. Fig.~\ref{fig:absorption_compare} compares the formula obtained from first
+principles with those used by Minimed (and apparently taken from Mudaliar et. al.). The result is a
+near-exact match.
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=4.5in]{figures/Insulin_Absorption_Comparison.png}
+\caption{
+Absorption curves given different absorption rates.
+Formula reverse-engineered from
+Mudaliar and colleagues, Diabetes Care, Volume 22, Number 9, Sept. 1999, page 1501.
+Image taken from Medtronic Paradigm Insulin Pump User Guide.
+}
+\label{fig:absorption_compare}
+\end{center}
+\end{figure}
+
 Food absorption rates follow the same reasoning. Here, however, the $t_A$  equivalent (call it $t_C$) 
 varies according to the food's score on the glycemic index. Thus, we set $t_C=2.0$ hours for 
-simplicity. Thus:
+simplicity (corresponding to a high-glycemic-index food). Thus:
 
 \begin{equation}
 {B_C}(t) = {S\over\ric}\cdot C_0\left( 1 - 0.05^{\left({t\over{t_C}}\right)^2} \right)
 \label{eq:carb}
 \end{equation}
+
+Figure~\ref{fig:predictive_daily} shows what happens when you put all of this together.
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=4.5in]{figures/predictive_dailyview.pdf}
+\caption{
+Prediction of a day's blood sugar, overlaid with CGM data.
+}
+\label{fig:predictive_daily}
+\end{center}
+\end{figure}
+
+\section{Long-term trends}
+
+An important aspect of management is assessing long-term trends. Fig.~\ref{fig:year} is a year-long
+review, which includes rolling 1-week averages, 4-week averages, and 17-week average BG. (17 weeks is
+roughly the lifetime of a red blood cell, and thus the 17-week average should give a fair comparison
+to \hbac.) In the figure, the \hbac axis has been calibrated to roughly match the 17-week average of
+this particular user (and not the $<BG>-\hbac$ conversion that the ADA publishes.
+The agreement between the 17-week average trend and the \hbac supports the assertion that the former
+can be used to track diabetes management as well.
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=6.5in]{figures/year_in_review_2016.pdf}
+\caption{Year in review for the years 2013-2016. Detailed record-keeping began in May 2013.
+%\hbac values shown are 7.9, 8.0, 7.7, and 7.6.
+\hbac values are shown in orange. The solid lines emphasize the \hbac=6, 7, and 8 values.
+}
+\label{fig:year}
+\end{center}
+\end{figure}
+
+\subsubsection{Relation between average glucose readings and \hbac}
+There is some description in the literature about relating \hbac to average BS.
+\footnote{See http://care.diabetesjournals.org/content/25/2/275.full}
+Based on this one text, the formula is below:
+\[
+BS(\mgdl)=(35.6 \times \hbac)-77.3
+\]
+or, reframing in a way which emphasizes the target BG for achieving a \hbac of 7.0:
+\[
+BS(\mgdl)=35.6\times(\hbac-7)+171.90
+\]
+The ADA has a much more pessimistic estimate\footnote{http://care.diabetesjournals.org/content/31/8/1473.full.pdf}:
+\[
+BS(\mgdl)=28.71\times(\hbac-7)+154.42
+\]
+This number may depend on the nature of blood sugar measurement (relating to how long after eating
+each measurement is taken) - and thus might depend on one's personal habits. Trying to correlate
+my personal BS (taken from a 17-week rolling average) with my \hbac readings, the relationship is
+roughly
+\[
+BS(\mgdl)=45.0\times(\hbac-7)+149.0
+\]
+
+Below are some representative numbers, for the purposes of setting targets. Roughly speaking, it
+appears as if 1/4 of a point in \hbac is equivalent to 9 \mgdl~(paper), 7 \mgdl~(ADA), 11
+\mgdl~(personal). \\
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\hbac & BS (Paper) & BS (ADA) & BS (Personal) \\ \hline
+6.50  & 154.1      & 140.1    & 126.5         \\ \hline
+6.75  & 163.0      & 147.2    & 137.8         \\ \hline
+7.00  & {\bf 171.9}      & {\bf 154.4}    & \bf{149.0}\\ \hline
+7.25  & 180.8      & 161.6    & 160.2         \\ \hline
+7.50  & 189.0      & 168.8    & 171.5         \\ \hline
+7.75  & 198.0      & 176.0    & 182.8         \\ \hline
+8.00  & 207.5      & 183.1    & 194.0         \\ \hline
+8.25  & 216.4      & 190.3    & 205.2         \\ \hline
+8.50  & 225.3      & 197.5    & 216.5         \\ \hline
+\end{tabular}
+\end{center}
+
+\section{Simulated Data as a Learning Tool}
+
+Simulated blood sugar data can serve as a learning tool to illustrate common (or uncommon) scenarios
+encountered in diabetes management. It can also serve as a testing ground for honing diabetes
+software in the testing phase.
+% For instance, simulate ``real'' CGM output with ``real'' rates, plus a noise term.
+The following section features illustrations suitable for understanding the effect of certain lifestyle
+choices on blood sugar levels.
+
+\subsection{Quantifying the Advantages of Carb Intake Reduction and E.B.}
+
+Fig.~\ref{fig:reduceCarb_eb} has some representative plots showing the potential gain of reducing
+carb intake, and bolusing before food intake (early bolus). The plots show the gains assuming perfect
+bolus estimates, however it should be noted that lowering carbohydrate intake can also reduce the
+potential for mis-estimation. Strict adhesion to a $<$65 grams per meal diet with heavy early-bolus
+could result in as much as a 1\% improvement in \hbac
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=3.in]{figures/reduced_carb.pdf}
+\includegraphics[width=3.in]{figures/early_bolus.pdf}
+\includegraphics[width=3.in]{figures/reduced_carb_eb.pdf}
+\caption{Left: The effects of multiplying carbohydrate intake by a factor of 3/4 and 1/2 on a
+nominal day's BG readings.
+Right: The effects of early bolus, by 15 minutes and 30 minutes. Bottom: Combining both methods.
+Plots are based on a 2-hour glucose absorption rate and a 4-hour insulin absorption rate.
+The nominal day consists of 45g at 9am, 130g at 12pm, 60g at 4pm and 100g at 8pm. }
+\label{fig:reduceCarb_eb}
+\end{center}
+\end{figure}
+
+\clearpage
+
+\subsection{The benefit to predictive plots}
+
+The closed loop is far away.
+
+One benefit of the predictive plots would be to determine when a CGM sensor was nearing its end of
+life. It is critical to know when a CGM is providing incorrect results. Noise studies can be used to
+determine this, but another input can be whether the CGM matches the predicted rise or fall of blood
+sugar. If the CGM reading differs from the prediction, it can point to a failing sensor (or it may
+be incomplete / incorrect information from the user). In this scenario, the software can ask the user
+whether they made a mistake in their reporting, whether the sensor might be failing, or whether a
+change in dose is required.
+
+Even when the loop is closed, this type of software can be crucial to an effective, safe, and efficient
+system. Assuming the loop is closed using a combination of glucagon and insulin, predictions are
+indespensible to prevent alternating over-doses of the two enzymes.
+
+\subsection{Suggestions for broader data input}
+
+Allowing the user to input these quantities can help the software do a better job of predicting blood
+sugar levels:
+
+\begin{itemize}
+  \item Estimated glycemic index (alternately, provide a drop-down list of foods)
+  \item Time delay (positive or negative) between bolus and eating
+  \item Excercize, including exact duration, and/or intensity.
+\end{itemize}
 
 \subsection{How the predictive plot macro works.} 
 
@@ -193,22 +356,6 @@ BG could be caused by the cancellation of 2 or more effects.
 
 \subsection{Predictive plot macro and error bands.} More on this later.
 
-\section{Long-term trends}
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[width=4.5in]{figures/year_in_review_2013.pdf}
-\caption{Year in review for the year 2013. Detailed record-keeping began in May.
-\hbac values shown are 7.9, 8.0, 7.7, and 7.6.
-}
-\label{fig:year}
-\end{center}
-\end{figure}
-
-An important aspect of management is assessing long-term trends. Fig.~\ref{fig:year} is a year-long 
-review, which includes rolling 1-week averages, 4-week averages, and 17-week averages. (17 weeks is 
-roughly the lifetime of a red blood cell, and thus the 17-week average should give a fair comparison 
-to \hbac.) 
 
 \section{Phase I Software}
 
@@ -228,16 +375,31 @@ events, and other ``accidental studies'' unwittingly carried out by the user, an
 However, the aforementioned user-delimited studies will suffice; they are also safer, since the Phase 
 III software would require the user to keep more detailed records.
 
-%% \section{Phase I.5}
 
-%% In this phase, specific events are plotted in order to get a feel for the meaning of data branches 
-%% (not always ), and to gain experience ahead of developing the phase II software.
 
-%% \begin{enumerate}
-%% \item What does BWZActiveInsulin mean with a value of -1?
-%% \end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
 
 \section{Phase II Software}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[width=4.5in]{figures/example_weekly.pdf}
+\caption{An example scatter plot, with a coarse binning underneath, highlighting general trends in
+blood sugar levels for one week. These plots are intended to catch large trends in insulin dosage
+response.}
+\label{default}
+\end{center}
+\end{figure}
 
 \subsection{Food uncertainties}
 
@@ -298,28 +460,6 @@ from which I have managed to shift all testing. Other healthy habits:
 	\i Vitamins?
 \ei
 
-\subsection{Quantifying the Advantages of Carb Intake Reduction and E.B.}
-
-Fig.~\ref{fig:reduceCarb_eb} has some representative plots showing the potential gain of reducing 
-carb intake, and bolusing before food intake (early bolus). The plots show the gains assuming perfect 
-bolus estimates, however it should be noted that lowering carbohydrate intake can also reduce the 
-potential for mis-estimation. Strict adhesion to a $<$65 grams per meal diet with heavy early-bolus 
-could result in as much as a 1\% improvement in \hbac
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[width=3.in]{figures/reduced_carb.pdf}
-\includegraphics[width=3.in]{figures/early_bolus.pdf}
-\includegraphics[width=3.in]{figures/reduced_carb_eb.pdf}
-\caption{Left: The effects of multiplying carbohydrate intake by a factor of 3/4 and 1/2 on a 
-nominal day's BG readings. 
-Right: The effects of early bolus, by 15 minutes and 30 minutes. Bottom: Combining both methods. 
-Plots are based on a 2-hour glucose absorption rate and a 4-hour insulin absorption rate.
-The nominal day consists of 45g at 9am, 130g at 12pm, 60g at 4pm and 100g at 8pm. }
-\label{fig:reduceCarb_eb}
-\end{center}
-\end{figure}
-
 
 \section{Additional Studies}
 
@@ -366,48 +506,6 @@ relate daily insulin totals to sensitivity, i.e. $S=1500/T$. I am not sure wheth
 a 2000 calorie diet, and whether or not eating more changes this value. In any case, my daily totals 
 range from 30-50, so sensitivity, accordingly, seems to be anywhere from 30 to 50. Or 65, who knows?
 
-\subsubsection{Relation between average glucose readings and \hbac}
-There is some description in the literature about relating \hbac to average BS.
-\footnote{See http://care.diabetesjournals.org/content/25/2/275.full}
-Based on this one text, the formula is below:
-\[
-BS(\mgdl)=(35.6 \times \hbac)-77.3
-\]
-or, reframing in a way which emphasizes the 
-\[
-BS(\mgdl)=35.6\times(\hbac-7)+171.90
-\]
-The ADA has a much more pessimistic estimate (link?):
-\[
-BS(\mgdl)=28.71\times(\hbac-7)+154.42
-\]
-This number may depend on the nature of blood sugar measurement (relating to how long after eating
-each measurement is taken) - and thus might depend on one's personal habits. Trying to correlate
-my personal BS (taken from a 17-week rolling average) with my \hbac readings, the relationship is
-roughly
-\[
-BS(\mgdl)=45.0\times(\hbac-7)+149.0
-\]
-
-Below are some representative numbers, for the purposes of setting targets. Roughly speaking, it 
-appears as if 1/4 of a point in \hbac is equivalent to 9 \mgdl~(paper), 7 \mgdl~(ADA), 11 
-\mgdl~(personal). \\
-\begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline
-\hbac & BS (Paper) & BS (ADA) & BS (Personal) \\ \hline
-6.50  & 154.1      & 140.1    & 126.5         \\ \hline
-6.75  & 163.0      & 147.2    & 137.8         \\ \hline
-7.00  & {\bf 171.9}      & {\bf 154.4}    & \bf{149.0}\\ \hline
-7.25  & 180.8      & 161.6    & 160.2         \\ \hline
-7.50  & 189.0      & 168.8    & 171.5         \\ \hline
-7.75  & 198.0      & 176.0    & 182.8         \\ \hline
-8.00  & 207.5      & 183.1    & 194.0         \\ \hline
-8.25  & 216.4      & 190.3    & 205.2         \\ \hline
-8.50  & 225.3      & 197.5    & 216.5         \\ \hline
-\end{tabular}
-\end{center}
-
 \subsection{Evolution of Carb Ratios}
 
 \begin{table}[h]
@@ -425,6 +523,8 @@ Date       & 12am & & & & 4am & & &    & 8am & & & & 12pm & & &    & 4pm &    & 
 2014/05/23 & 16   & & & &     & & & 16 &     & & & & 16*  & & & 16 &     & 16 & & &     & & 16 &      \\
 2014/05/27 & 16   & & & &     & & & 16 &     & & & & 17*  & & & 19 &     & 20 & & &     & & 18 &      \\
 2014/05/28 & 16   & & & &     & & & 16 &     & & & & 17*  & & & 19 &     & 23 & & &     & & 18 &      \\
+2015/xx/xx & 19   & & & &     & & & 16 &     & & & & 17*  & & & 19 &     & 23 & & &     & & 18 &      \\
+2015/03/01 & 20   & & & &     & & & 16 &     & & & & 17*  & & & 19 &     & 23 & & &     & & 20 &      \\
 %          %      & & & &     & & &    &     & & & &      & & &    &     &    & & &     & &    &      \\
 \hline
 \end{tabular}
@@ -466,7 +566,9 @@ Date       & 12am & &    & & 4am & &     & & 8am & &    & & 12pm & &     &     &
 2014/05/26 & .8   & & .75& & .75 & & .75 & & .9  & & .9 & & .9   & & .85 & .75 & .75 & & .8 & & .9  & & .9 &      \\
 2014/12/05 & .8   & & .75& & .75 & & .75 & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
 2015/01/09 & .7   & & .65& & .65 & & .65 & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
-2015/01/22 & .65  & & .6 & & .6  & & .6  & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
+2015/03/01 & .55  & & .5 & & .5  & & .5  & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
+2015/03/01 & .75  & & .75& & .75 & & .75 & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
+2015/07/20 & .70  & & .70& & .70 & & .70 & & .9  & & .9 & & .9   & & .85 & .7  & .7  & & .7 & & .9  & & .9 &      \\
 %    & & & &     & & &    &     & & & &      & & & &     &    & & &     & & &      \\
 \hline
 \end{tabular}
@@ -497,6 +599,8 @@ Started Wednesday, June 12, 2013.
 2014/05/28 & Increased carb:insulin ratio in the afternoon, further. (Another low.)\\ \hline
 2015/01/09 & Decreased basal at night (85\% of nominal) due to night lows. Started in Denmark. \\ \hline
 2015/01/22 & Decreased basal at night (-0.05 per hour) due to night lows. Noticed the other night... \\ \hline
+2015/03/01 & Decreased basal at night (85\% of nominal) due to night lows. Noticed the other night... \\ \hline
+2015/03/01 & Decreased basal at night (Shaved of 0.05) due to night lows. Problem for a while - maybe the heat? \\ \hline
 \end{tabular}
 \end{center}
 \end{table}%
