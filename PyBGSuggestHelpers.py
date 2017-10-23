@@ -42,6 +42,9 @@ class TimeClass :
         is_dst = time.localtime(l-self.OneHour*4).tm_isdst
         return l - is_dst*self.OneHour
 
+    def DayWeekToUniversal(self,week,day) :
+        return self.nWeekToUniversal(week) + self.OneDay*day
+
     def GetDayOfWeek(self,l) :
         l = long(l)
         is_dst = time.localtime(l-self.OneHour*4).tm_isdst
@@ -56,11 +59,17 @@ class TimeClass :
         l = long(l)-self.OneHour*4.
         return time.localtime(l).tm_hour + time.localtime(l).tm_min/60.
 
+    def GetTimeOfDayFromMidnight(self,l) :
+        # Starting from 4am
+        return time.localtime(l).tm_hour + time.localtime(l).tm_min/60.
+
     def TimeFromString(self,s) :
         # universal
         return long(time.mktime(time.strptime(s, "%m/%d/%y %H:%M:%S")))
     
-    def StringFromTime(self,t) :
+    def StringFromTime(self,t,dayonly=False) :
+        if dayonly :
+            return time.strftime("%m/%d/%y",time.localtime(t))
         return time.strftime("%m/%d/%y %H:%M:%S",time.localtime(t))
 
     def GetWeekString(self,w) :
@@ -292,9 +301,9 @@ def GetLastWeek(tree) :
     return last_week
 
 #------------------------------------------------------------------
-def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio_2=0.5) :
+def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio_2=0.5,ratio_n1=0) :
     from ROOT import TCanvas,TPad
-    from pennSoftLepton.PlotFunctions import tobject_collector
+    from PlotFunctions import tobject_collector
 
     c = TCanvas(canvas_name,canvas_title,canw,canh)
     c.cd()
@@ -318,7 +327,7 @@ def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio
     tobject_collector.append(bot)
     
     c.cd()
-    bot = TPad("pad_bot", "This is the bottom pad",0.0,0.0,1.0,ratio_1)
+    bot = TPad("pad_bot", "This is the bottom pad",0.0,ratio_n1,1.0,ratio_1)
     bot.SetBottomMargin(0.08/float(bot.GetHNDC()))
     bot.SetTopMargin   (0.005/float(bot.GetHNDC()))
     bot.SetRightMargin (0.05)
@@ -326,7 +335,18 @@ def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio
     bot.SetFillColor(0)
     bot.Draw()
     tobject_collector.append(bot)
-    
+
+    if ratio_n1 :
+        c.cd()
+        sub = TPad("pad_sub", "This is the sub-bottom pad",0.0,0.0,1.0,ratio_n1)
+        sub.SetBottomMargin(0.03)
+        sub.SetTopMargin   (0.01)
+        sub.SetRightMargin (0.05)
+        sub.SetLeftMargin  (0.16)
+        sub.SetFillColor(0)
+        sub.Draw()
+        tobject_collector.append(sub)
+
     return c
 
 #------------------------------------------------------------------
@@ -334,13 +354,18 @@ def GetMidPad(can) :
     return can.GetPrimitive('pad_mid')
 
 #------------------------------------------------------------------
-def PredictionCanvas(tree,day,weeks_ago=0) :
+def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     print day,weeks_ago
-    import pennSoftLepton.PlotFunctions as plotfunc
-    import pennSoftLepton.TAxisFunctions as taxisfunc
+    import PlotFunctions as plotfunc
+    import TAxisFunctions as taxisfunc
     from array import array
 
-    prediction_canvas = ThreePadCanvas('prediction_canvas','prediction_canvas',600,500)
+    #prediction_canvas = ThreePadCanvas('prediction_canvas','prediction_canvas',600,500)
+    prediction_canvas = ThreePadCanvas('prediction_canvas','prediction_canvas',600,600,
+                                       ratio_1=0.41,
+                                       ratio_2=0.59,
+                                       ratio_n1=0.17
+                                       )
     #prediction_canvas.SetWindowSize(500,500)
     week = GetLastWeek(tree)
     week = week - weeks_ago
@@ -348,6 +373,7 @@ def PredictionCanvas(tree,day,weeks_ago=0) :
     plotfunc.AddHistogram(prediction_canvas,GetHistWithTimeAxis(),'')
     plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),GetHistWithTimeAxis(),'')
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),GetHistWithTimeAxis(),'')
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),GetHistWithTimeAxis(),'')
 
     band = ROOT.TH1F('band','skipme',1,-0.5,24.5)
     band.SetBinContent(1,130)
@@ -417,18 +443,95 @@ def PredictionCanvas(tree,day,weeks_ago=0) :
 
     taxisfunc.SetYaxisRanges(GetMidPad(prediction_canvas),-199,199)
     taxisfunc.SetXaxisRanges(GetMidPad(prediction_canvas),-0.5,24.5)
-
+    taxisfunc.SetYaxisNdivisions(GetMidPad(prediction_canvas),5,5,0)
     GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis().SetLabelOffset(5)
     GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetYaxis().SetTitle('food/bolus')
     plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetLabelOffset(.04)
     plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetTitleOffset(2.8)
     plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetYaxis().SetTitle('CGM-Pred')
 
+    plotfunc.FormatCanvasAxes(prediction_canvas.GetPrimitive('pad_sub'))
+    taxisfunc.SetYaxisRanges(prediction_canvas.GetPrimitive('pad_sub'),0.001,90)
+    plotfunc.SetAxisLabels(prediction_canvas.GetPrimitive('pad_sub'),'','Settings')
+    prediction_canvas.GetPrimitive('pad_sub').GetPrimitive('pad_sub_HistWithTimeAxis').GetXaxis().SetLabelOffset(10)
+    prediction_canvas.GetPrimitive('pad_sub').GetPrimitive('pad_sub_HistWithTimeAxis').GetYaxis().SetNdivisions(5,2,0)
+
+    #
+    # Draw the date.
+    #
+    t = TimeClass()
+    plotfunc.DrawText(prediction_canvas.GetPrimitive('pad_top'),
+                      t.StringFromTime(t.DayWeekToUniversal(week,day),dayonly=True),
+                      0.79,0.73,0.91,0.84,
+                      totalentries=1
+                      )
+
+    #
+    # Draw settings - insulin sensitivity
+    #
+    if rootfile :
+        hist_sensi = None
+        for i in rootfile.GetListOfKeys() :
+            if 'Sensitivity' not in i.GetName() :
+                continue
+            #print i.GetName()
+            #print 'day of week is',t.GetDayOfWeek(time_in_question)
+            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('Sensitivity ','')) :
+                #print 'Stopping at',i.GetName()
+                hist_sensi = i.ReadObj()
+                hist_sensi.SetMarkerColor(ROOT.kGreen+1)
+                hist_sensi.SetMarkerSize(0.2)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'p')
+                hist_sensi.SetMarkerSize(6)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'text45')
+                break
+
+    #
+    # Draw settings - food sensitivity
+    #
+    if rootfile :
+        hist_foodsensi = None
+        for i in rootfile.GetListOfKeys() :
+            if 'RIC' not in i.GetName() :
+                continue
+            #print i.GetName()
+            #print 'day of week is',t.GetDayOfWeek(time_in_question)
+            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('RIC ','')) :
+                #print 'Stopping at',i.GetName()
+                hist_foodsensi = i.ReadObj()
+                hist_foodsensi.SetMarkerSize(0.2)
+                hist_foodsensi.SetMarkerColor(ROOT.kRed+1)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_foodsensi,'p')
+                hist_foodsensi.SetMarkerSize(6)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_foodsensi,'text45')
+                break
+
+    #
+    # Draw settings - basal
+    #
+    if rootfile :
+        hist_basalsensi = None
+        for i in rootfile.GetListOfKeys() :
+            if 'Basal' not in i.GetName() :
+                continue
+            #print i.GetName()
+            #print 'day of week is',t.GetDayOfWeek(time_in_question)
+            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('Basal ','')) :
+                #print 'Stopping at',i.GetName()
+                hist_basalsensi = i.ReadObj()
+                hist_basalsensi.SetMarkerSize(0.2)
+                hist_basalsensi.SetMarkerColor(ROOT.kBlue+1)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basalsensi,'p')
+                hist_basalsensi.SetMarkerSize(6)
+                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basalsensi,'text45')
+                break
+
+    prediction_canvas.GetPrimitive('pad_sub').Modified()
+    prediction_canvas.GetPrimitive('pad_sub').Update()
     GetMidPad(prediction_canvas).Modified()
     GetMidPad(prediction_canvas).Update()
     prediction_canvas.Modified()
     prediction_canvas.Update()
-
     return prediction_canvas
 
 #------------------------------------------------------------------
@@ -447,7 +550,7 @@ def GetDayContainers(tree,week,day) :
     #print 'self.start_time DDX', self.start_time
     #start_time_rr = self.start_time                          # relevant readings - will change
 
-    start_of_plot_day = t.WeekDayHourToUniversal(week,day,0) # from 4am
+    start_of_plot_day = t.WeekDayHourToUniversal(week,day,0)-t.OneDay # from 4am
     end_time = t.WeekDayHourToUniversal(week,day+1,0)   # events ending at 4am
 
     containers = []
@@ -562,7 +665,7 @@ def GetDayContainers(tree,week,day) :
                     IsBWZEstimate = True
                     break
                 if j == i+9 :
-                    print 'Error! Could not find BWZ estimate!',t.StringFromTime(containers[-1].iov_0)
+                    print 'Warning! Could not find BWZ estimate!',t.StringFromTime(containers[-1].iov_0)
 
             if IsBWZEstimate and (containers[-1].I0 != containers[-1].I0Est) :
                 containers[-1].BWZMatchedDelivered = False
@@ -589,6 +692,12 @@ def GetDayContainers(tree,week,day) :
             containers[-1].iov_1 = tree.UniversalTime+6.*t.OneHour
             containers[-1].S     = tree.BWZInsulinSensitivity
             containers[-1].Ta    = 2.
+            # starting on March 25,
+            if tree.UniversalTime > t.TimeFromString('03/25/15 10:00:00') :
+                add_time = (tree.BWZCarbInput % 5)
+                print 'Grading based on %5.',
+                print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
+                containers[-1].Ta    = 2. + add_time
             containers[-1].C     = tree.BWZCarbInput
             containers[-1].RIC   = tree.BWZCarbRatio
 
@@ -600,6 +709,7 @@ def GetDayContainers(tree,week,day) :
 #------------------------------------------------------------------
 def ComparePredictionToReality(prediction,reality,reverse=False) :
     from array import array
+    import math
 
     x_real = reality.GetX()
     y_real = reality.GetY()
@@ -613,7 +723,7 @@ def ComparePredictionToReality(prediction,reality,reverse=False) :
     for xp in range(prediction.GetN()) :
         not_yet = True
         for xr in range(reality.GetN()) :
-            if not_yet and (x_pred[xp] - x_real[xr]) < 1./6. :
+            if not_yet and math.fabs(x_pred[xp] - x_real[xr]) < 1./6. :
                 x_diff.append(x_pred[xp])
                 factor = -1. if reverse else 1.
                 y_diff.append((y_real[xr] - y_pred[xp])*factor)
@@ -672,6 +782,7 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) 
     for i in range(int(24./hours_per_step)) :
         the_time = start_of_plot_day + i*hours_per_step*float(t.OneHour) # universal
 
+        # HACK if it's not lining up (daylight savings time for instance)
         x_time.append(0+hours_per_step*i)
         if len(y_bg) : 
             y_bg.append(y_bg[-1])
