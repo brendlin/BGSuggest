@@ -1,6 +1,6 @@
 import ROOT
 from PyBGSuggestHelpers import TimeClass
-from PlotUtils import SmartPlot,color,markerstyles
+#from PlotUtils import SmartPlot,color,markerstyles
 
 def SuppliesSummary(tree,nyears=4) :
 
@@ -76,13 +76,13 @@ def SuppliesSummary(tree,nyears=4) :
     strips_histo.SetBinContent(week_in_question+1,rolling_bgs)
     insulin_histo.SetBinContent(week_in_question+1,rolling_insulin)
 
-    rewind_plot = SmartPlot(0,'','Rewind Frequency',[rewind_histo],drawopt='hist')
-    rewind_plot.SetAxisLabels('Days between Rewinds','Entries')
-    test_f_histo.SetName('Test Frequency (avg=%2.2f/day)'%(24./float(test_f_histo.GetMean())))
-    test_f_plot = SmartPlot(0,'','Test Frequency',[test_f_histo],drawopt='hist')
-    test_f_plot.SetAxisLabels('Hours between tests','Entries')
-    supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo,insulin_histo],drawopt='hist')
-    supplies_plot.SetAxisLabels('Week Of Year','# of supplies')
+#     rewind_plot = SmartPlot(0,'','Rewind Frequency',[rewind_histo],drawopt='hist')
+#     rewind_plot.SetAxisLabels('Days between Rewinds','Entries')
+#     test_f_histo.SetName('Test Frequency (avg=%2.2f/day)'%(24./float(test_f_histo.GetMean())))
+#     test_f_plot = SmartPlot(0,'','Test Frequency',[test_f_histo],drawopt='hist')
+#     test_f_plot.SetAxisLabels('Hours between tests','Entries')
+#     supplies_plot = SmartPlot(0,'','Supplies Plot',[supplies_histo,strips_histo,insulin_histo],drawopt='hist')
+#     supplies_plot.SetAxisLabels('Week Of Year','# of supplies')
     from ROOT import kRed,kAzure
     supplies_plot.plots[0].GetYaxis().SetRangeUser(0,120)
     supplies_plot.DrawHorizontal(30./3.,style=2)
