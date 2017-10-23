@@ -44,7 +44,7 @@ def UploadData() :
     mousemove(int(currentpos.x),int(currentpos.y)); # Restore mouse position
 
     # Wait. Hard to get around this.
-    time.sleep(720)
+    time.sleep(180)
 
     # Quit; notify user that we are done.
     os.system('''/usr/bin/osascript -e 'tell application "Safari" \n quit \n end tell' ''')
