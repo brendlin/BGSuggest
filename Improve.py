@@ -77,7 +77,6 @@ if __name__ == '__main__':
 
     if options.today :
         options.day_of_week = datetime.date.today().weekday()
-        print options.day_of_week
 
     if options.detailed and options.day_of_week < 0 :
         print 'Error! Please specify day (e.g. --m). Exiting.'

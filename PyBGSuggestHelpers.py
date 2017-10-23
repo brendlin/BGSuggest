@@ -106,7 +106,7 @@ def GetHistWithTimeAxis() :
     import ROOT
     if ROOT.gDirectory.Get('HistWithTimeAxis') :
         return ROOT.gDirectory.Get('HistWithTimeAxis')
-    hist= ROOT.TH1F('HistWithTimeAxis','skipme',25,-0.5,24.5)
+    hist= ROOT.TH1F('HistWithTimeAxis','remove',25,-0.5,24.5)
     hist.GetXaxis().SetBinLabel(1,'4 am                   ')
     hist.GetXaxis().SetBinLabel(5,'8 am')
     hist.GetXaxis().SetBinLabel(9,'12 pm')
@@ -355,7 +355,7 @@ def GetMidPad(can) :
 
 #------------------------------------------------------------------
 def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
-    print day,weeks_ago
+    print 'Calculating the prediction from day-of-week %d of %d weeks ago'%(day,weeks_ago)
     import PlotFunctions as plotfunc
     import TAxisFunctions as taxisfunc
     from array import array
@@ -393,7 +393,8 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
 
     sensor_data = GetDataFromDay(tree,'SensorGlucose',day,week)
     sensor_data.SetMarkerSize(0.7)
-    plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensor_data,'p')
+    if sensor_data.GetN() >= 1 :
+        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensor_data,'p')
 
     bg_data = GetDataFromDay(tree,'BGReading',day,week)
     bg_data.SetMarkerColor(ROOT.kRed+1)
@@ -408,22 +409,26 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     food_plot.SetFillStyle(3001)
     food_plot.SetFillColor(ROOT.kRed+1)
     food_plot.SetLineColor(ROOT.kRed+1)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),food_plot,'hist')
+    plotfunc.AddHistogram(GetMidPad(prediction_canvas),food_plot,'lhist')
 
     insulin_plot = DDX('insulin',containers,week,day)
     insulin_plot.SetFillStyle(3001)
     insulin_plot.SetFillColor(ROOT.kGreen+1)
     insulin_plot.SetLineColor(ROOT.kGreen+1)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),insulin_plot,'hist')
+    plotfunc.AddHistogram(GetMidPad(prediction_canvas),insulin_plot,'lhist')
 
     both_plot = DDX('insulin_food',containers,week,day)
     both_plot.SetFillStyle(3001)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'hist')
+    both_plot.SetLineWidth(2)
+    plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
-    residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
-    residual_plot.SetMarkerSize(0.5)
-    plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot,'p')
+    # Residual plot for sensor data
+    if sensor_data.GetN() >= 1 :
+        residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
+        residual_plot.SetMarkerSize(0.5)
+        plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot,'p')
 
+    # Residual plot for BG data
     residual_plot_2 = ComparePredictionToReality(bg_data,prediction_plot,reverse=True)
     residual_plot_2.SetMarkerSize(0.8)
     residual_plot_2.SetMarkerColor(ROOT.kRed+1)
@@ -732,6 +737,7 @@ def ComparePredictionToReality(prediction,reality,reverse=False) :
                 break
 
     h = ROOT.TGraph(len(x_diff),array('d',x_diff),array('d',y_diff))
+    h.SetName('Compare_prediction_to_reality')
     return h
 
 #------------------------------------------------------------------
@@ -741,7 +747,7 @@ def DDX(the_type,containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
     t = TimeClass()
 
     start_of_plot_day = t.WeekDayHourToUniversal(week,day,0) # from 4am
-    hours_per_step = 0.25
+    hours_per_step = 0.1
     x_time = []
     y_bg = []
 
