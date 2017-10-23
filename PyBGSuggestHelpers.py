@@ -393,7 +393,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
 
     sensor_data = GetDataFromDay(tree,'SensorGlucose',day,week)
     sensor_data.SetMarkerSize(0.7)
-    if sensor_data.GetN() >= 1 :
+    if sensor_data.GetN() > 1 :
         plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensor_data,'p')
 
     bg_data = GetDataFromDay(tree,'BGReading',day,week)
@@ -423,7 +423,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
     # Residual plot for sensor data
-    if sensor_data.GetN() >= 1 :
+    if sensor_data.GetN() > 1 :
         residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
         residual_plot.SetMarkerSize(0.5)
         plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot,'p')
@@ -450,10 +450,10 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     taxisfunc.SetXaxisRanges(GetMidPad(prediction_canvas),-0.5,24.5)
     taxisfunc.SetYaxisNdivisions(GetMidPad(prediction_canvas),5,5,0)
     GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis().SetLabelOffset(5)
-    GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetYaxis().SetTitle('food/bolus')
+    GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetYaxis().SetTitle('#Delta^{}BG^{ }/^{ }hr')
     plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetLabelOffset(.04)
     plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetTitleOffset(2.8)
-    plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetYaxis().SetTitle('CGM-Pred')
+    plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetYaxis().SetTitle('data^{ }#minus^{ }pred')
 
     plotfunc.FormatCanvasAxes(prediction_canvas.GetPrimitive('pad_sub'))
     taxisfunc.SetYaxisRanges(prediction_canvas.GetPrimitive('pad_sub'),0.001,90)
