@@ -5,6 +5,7 @@ import PlotFunctions as plotfunc
 from SampleEarlyBolus import SampleEarlyBolus
 from SuppliesSummary import SuppliesSummary
 from PyBGSuggestHelpers import PredictionCanvas
+from ScatterPlot import GetOverview
 import datetime
 
 def main(options,args) :
@@ -19,10 +20,8 @@ def main(options,args) :
 
     canvases = []
 
-#     c = WeekPlot()
-#     if options.overview :
-#         c.Overview('last')
-
+    if options.overview :
+        canvases.append(GetOverview(e_shortterm,options.week,options.week))
     if options.detailed :
         canvases.append(PredictionCanvas(e_shortterm,options.day_of_week,-options.week,rootfile=f_shortterm))
     if options.yir :
@@ -48,8 +47,8 @@ if __name__ == '__main__':
     from optparse import OptionParser
     p = OptionParser()
     p.add_option('--save',action='store_true',default=False,dest='save',help='save cans to pdf')
-    p.add_option('--detailed',action='store_true',default=False,dest='detailed',help='save cans to pdf')
-    p.add_option('--overview',action='store_true',default=False,dest='overview',help='save cans to pdf')
+    p.add_option('--detailed',action='store_true',default=False,dest='detailed',help='Detailed one-day view')
+    p.add_option('--overview',action='store_true',default=False,dest='overview',help='Overview (scatter plot)')
     p.add_option('--yir',action='store_true',default=False,dest='yir',help='save cans to pdf')
     p.add_option('--isig',action='store_true',default=False,dest='isig',help='save cans to pdf')
     p.add_option('--example',action='store_true',default=False,dest='example',help='save cans to pdf')
