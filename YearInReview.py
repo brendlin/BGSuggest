@@ -134,13 +134,13 @@ def YearInReview(tree,nyears=5) :
 
     plotfunc.AddHistogram(year_in_review,dummy)
     yir_17w.SetMarkerSize(0)
-    yir_17w.SetTitle('remove')
+    yir_17w.SetTitle('17-week-average')
     plotfunc.AddHistogram(year_in_review,yir_17w,'lE3')
     plotfunc.AddHistogram(year_in_review,yir,'phist')
     plotfunc.AddHistogram(year_in_review,yir_smooth,'lhist')
     # Add yir on top once more.
     yir_17w.SetFillStyle(0)
-    yir_17w.SetTitle('17-week average')
+    yir_17w.SetTitle('remove')
     plotfunc.AddHistogram(year_in_review,yir_17w,'lhist')
     plotfunc.AddHistogram(year_in_review,a1cs,'pl')
     plotfunc.AutoFixAxes(year_in_review)
@@ -163,7 +163,7 @@ def YearInReview(tree,nyears=5) :
     a.DrawLine(0,high,nweeks,high)
     a.DrawLine(last_week-16,low,last_week-16,high)
 
-    option = ['p','l','l','pl','pl']
+    option = ['fl','l','l','pl','pl']
     plotfunc.MakeLegend(year_in_review,0.7,0.15,0.86,0.35,option=option)
     year_in_review.GetPrimitive('legend').SetFillColor(0)
     year_in_review.GetPrimitive('legend').SetFillStyle(1001)
