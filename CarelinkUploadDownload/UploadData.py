@@ -48,7 +48,7 @@ def UploadData() :
 
     # Quit; notify user that we are done.
     os.system('''/usr/bin/osascript -e 'tell application "Safari" \n quit \n end tell' ''')
-    os.system('''/usr/bin/osascript -e 'display notification "New data (probably) uploaded."' ''')
+#     os.system('''/usr/bin/osascript -e 'display notification "New data (probably) uploaded."' ''')
 
     return True
 

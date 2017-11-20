@@ -6,8 +6,14 @@ import datetime
 
 def DownloadCSVAndMoveIntoPosition(start,end) :
     test_script = False
+    days_old = (datetime.datetime.now() - datetime.datetime.strptime(end,'%m/%d/%Y')).days
+
+    if days_old < 0 :
+        print 'Error! Attempting to download data from the future! Exiting.'
+        sys.exit()
 
     cmd = 'osascript DownloadCSV.scpt %s %s'%(start,end)
+    print cmd
 
     if test_script :
         print cmd
@@ -36,7 +42,6 @@ def DownloadCSVAndMoveIntoPosition(start,end) :
         print 'Error! No new file found in %s.'%(download_dir)
         return False
 
-    days_old = (datetime.datetime.now() - datetime.datetime.strptime(end,'%m/%d/%Y')).days
     if days_old > 0 :
         first_day = '%s%s%s'%(start.split('/')[2].split('20')[1],
                               start.split('/')[0],
@@ -60,4 +65,9 @@ def DownloadCSVAndMoveIntoPosition(start,end) :
     return True
 
 if __name__ == "__main__":
+
+    if len(sys.argv) < 3 :
+        print 'Usage: python DownloadCSVAndMoveIntoPosition.py 12/25/2017 12/31/2017'
+        sys.exit()
+
     DownloadCSVAndMoveIntoPosition(sys.argv[1],sys.argv[2])
