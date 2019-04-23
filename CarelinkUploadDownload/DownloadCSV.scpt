@@ -31,6 +31,12 @@ on run argv
 
     WaitUntilSafariWindowHasLoaded()
 
+    tell application "Safari"
+        do JavaScript "browser.submit()" in document 1
+    end tell
+
+    WaitUntilSafariWindowHasLoaded()
+
     set newFile to ((path to me as text) & "::noupload.txt")
     set theFileContents to paragraph 1 of (read file newFile)
 
@@ -43,14 +49,17 @@ on run argv
     WaitUntilSafariWindowHasLoaded()
 
     -- tell application "Safari" to open location "https://carelink.minimed.com/patient/main/reports.do"
-    tell application "Safari" to set the URL of the front document to "https://carelink.minimed.com/patient/main/reports.do"
+    -- tell application "Safari" to set the URL of the front document to "https://carelink.minimed.com/patient/main/reports.do"
+    tell application "Safari" to set the URL of the front document to "https://carelink.minimed.com/patient/main/proReports.do"
 
     WaitUntilSafariWindowHasLoaded()
 
     tell application "Safari"
-        do JavaScript "document.getElementById('startDate11').value = '" & item 1 of argv & "';" in document 1
-        do JavaScript "document.getElementById('endDate11').value = '" & item 2 of argv & "';" in document 1
-        do JavaScript "document.getElementById('reportPicker11').submit();" in document 1
+        do JavaScript "document.getElementById('periodButton0').click()" in document 1
+        do JavaScript "document.getElementsByName('daterangepicker_start')[0].value = '" & item 1 of argv & "';" in document 1
+        do JavaScript "document.getElementsByName('daterangepicker_end')[0].value = '"   & item 2 of argv & "';" in document 1
+        do JavaScript "document.getElementsByClassName('applyBtn btn btn-sm periodButton')[0].click()" in document 1
+        do JavaScript "document.getElementById('reportNav_button1').click()" in document 1
     end tell
     -- you can check in the consule that these are correctly set.
 

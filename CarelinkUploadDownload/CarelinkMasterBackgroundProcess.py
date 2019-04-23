@@ -4,7 +4,7 @@ import time
 import os
 from CheckForUSB import CheckForUSB
 from DownloadCSVAndMoveIntoPosition import DownloadCSVAndMoveIntoPosition
-from UploadData import UploadData
+from UploadDataNew import UploadDataNew
 import datetime
 
 # configuration
@@ -30,7 +30,7 @@ while True :
             continue
 
         # Run the upload and the download
-        if not UploadData() :
+        if not UploadDataNew() :
             print 'User canceled.'
             last_upload = time.time()
             usb_notified = False

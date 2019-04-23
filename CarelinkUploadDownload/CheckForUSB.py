@@ -1,7 +1,7 @@
 import sys
 import usb.core
 
-# Put the following lines in your bash_profile:
+# Put the following lines in your bash_profile (NO! NOW IT IS INSTALLED in /usr/local/lib!):
 # export PYTHONPATH=$PYTHONPATH:$HOME/pyusb-1.0.0rc1
 # export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$HOME/libusb/lib
 
