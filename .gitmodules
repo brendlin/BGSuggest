@@ -1,0 +1,9 @@
+[submodule "chrome-uploader"]
+	path = chrome-uploader
+	url = ../../tidepool-org/chrome-uploader
+[submodule "decocare"]
+	path = decocare
+	url = ../../openaps/decocare
+[submodule "openaps"]
+	path = openaps
+	url = ../../openaps/openaps
