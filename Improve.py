@@ -16,7 +16,7 @@ def main(options,args) :
     e = f.Get('LongTerm')
     
     f_shortterm = ROOT.TFile('output.root')
-    e_shortterm = f_shortterm.Get('Tree Name')
+    e_shortterm = f_shortterm.Get('FullResults')
 
     canvases = []
 
