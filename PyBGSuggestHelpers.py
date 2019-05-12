@@ -65,7 +65,11 @@ class TimeClass :
 
     def TimeFromString(self,s) :
         # universal
-        return long(time.mktime(time.strptime(s, "%m/%d/%y %H:%M:%S")))
+        try :
+            return long(time.mktime(time.strptime(s, "%m/%d/%y %H:%M:%S")))
+        except ValueError :
+            # Tidepool format
+            return long(time.mktime(time.strptime(s, '%Y-%m-%dT%H:%M:%S')))
     
     def StringFromTime(self,t,dayonly=False) :
         if dayonly :

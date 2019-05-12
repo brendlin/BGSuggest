@@ -23,7 +23,6 @@ for d in thedir :
         inputfilenames.append('%s/%s'%(datadir,d))
 
 inputfilenames = sorted(inputfilenames)
-
 print inputfilenames
 
 ROOT.gROOT.LoadMacro('bgrootstruct.h+')
@@ -32,7 +31,6 @@ rootfile = TFile(rootfilename,"RECREATE")
 
 tree = ROOT.TTree("FullResults","Full Results")
 s = ROOT.bgrootstruct()
-#tree._s = s
 
 basal_histograms = ImportHelpers.SettingsHistograms('Basal')
 sensi_histograms = ImportHelpers.SettingsHistograms('Sensitivity')
@@ -74,13 +72,7 @@ time_right_now = long(time.time())
 for inputfilename in inputfilenames :
 
     inputfile = open(inputfilename,'r')
-    counter = 0
     for line in inputfile:
-        #print line
-        counter += 1
-        #print "counter is "+str(counter)
-        #if counter > 100: 
-        #  break
 
         # Get rid of commas between quoted items
         linevector = line.split('"')
@@ -104,27 +96,29 @@ for inputfilename in inputfilenames :
             # START_TIME is either index number 4 or 3:
             i_st = 4 if linevector[33] == 'ChangeCarbRatio' else 3
             start_time = int(2*int(linevector[34].split()[i_st].replace('START_TIME=',''))/3600000)
+            timestamp = linevector[3]
 
             if linevector[33] == 'ChangeBasalProfile' :
                 rate = float(linevector[34].split()[2].replace('RATE=',''))
-                basal_histograms.AddSettingToHistogram(linevector[3],start_time,rate)
+                basal_histograms.AddSettingToHistogram(timestamp,start_time,rate)
 
             if linevector[33] == 'ChangeInsulinSensitivity' :
                 rate = float(linevector[34].split()[2].replace('AMOUNT=',''))
-                sensi_histograms.AddSettingToHistogram(linevector[3],start_time,rate)
+                sensi_histograms.AddSettingToHistogram(timestamp,start_time,rate)
 
             if linevector[33] == 'ChangeCarbRatio' :
                 ric = float(linevector[34].split()[2].replace('AMOUNT=',''))
-                ric_histograms.AddSettingToHistogram(linevector[3],start_time,ric)
+                ric_histograms.AddSettingToHistogram(timestamp,start_time,ric)
 
         #
         # The standard data collection.
         #
         if len(linevector) == 39 and linevector[0] != "Index":
+
             for br in ['Index','Date','Time','Timestamp'] :
                 val = linevector[branches[br].csvIndex]
                 setattr(s,br,branches[br].formatValue(val))
-            #s.UniversalTime           = long(time.mktime(time.strptime(linevector[3], "%m/%d/%y %H:%M:%S")))
+
             s.UniversalTime           = MyTime.TimeFromString(linevector[3])
 
             #
@@ -138,12 +132,9 @@ for inputfilename in inputfilenames :
             # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
             # The text field is linevector[33]
             if 'JournalEntryMealMarker' in linevector[33] :
-                #print 'JournalEntryMealMarker'
+                # Hack to save carbs [23], carb ratio [21] and sensitivity [22]:
                 linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0].split()[0]
-                #print 'time:',linevector[3]
-                # carb ratio:
                 linevector[21] = ric_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
-                # sensitivity:
                 linevector[22] = sensi_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
 
             #
@@ -197,7 +188,6 @@ for inputfilename in inputfilenames :
             s.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(s.UniversalTime)
             s.HourOfDayFromFourAM     = MyTime.GetHourOfDay(s.UniversalTime)
             s.TimeOfDayFromFourAM     = float(MyTime.GetTimeOfDay(s.UniversalTime))
-            #print s.TimeOfDayFromFourAM
 
             # Fill the rest of the branches.
             for br in ['NewDeviceTime','BGReading','TempBasalAmount','TempBasalType',
