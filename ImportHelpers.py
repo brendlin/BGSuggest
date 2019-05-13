@@ -14,7 +14,7 @@ class BRCL :
     #
     # Figure out the correct format the the tree wants
     #
-    def formatValue(self,strval) :
+    def formatCSVValue(self,strval) :
         if strval == '' and self.isNumber :
             return -1
         if self.btype == 'I' :
@@ -27,9 +27,17 @@ class BRCL :
             return float(strval)
         return strval
 
+    def DefaultValue(self) :
+        return {
+            'I': -1,
+            'O':  0,
+            'L':  0,
+            'F': -1,
+            }.get(self.btype)
+
     def getFormattedValueFromVector(self,vector) :
         val = vector[self.csvIndex]
-        return self.formatValue(val)
+        return self.formatCSVValue(val)
 
 def GetTreeBranchClassesDict() :
     import collections
@@ -39,29 +47,29 @@ def GetTreeBranchClassesDict() :
     branches['Time'                   ] = BRCL('C',2)
     branches['Timestamp'              ] = BRCL('C',3)
     branches['NewDeviceTime'          ] = BRCL('C',4)
-    branches['BGReading'              ] = BRCL('I',5)
+    branches['BGReading'              ] = BRCL('I',5) # ['value']
     branches['LinkedBGMeterID'        ] = BRCL('L',6)
     branches['TempBasalAmount'        ] = BRCL('F',7)
     branches['TempBasalType'          ] = BRCL('C',8)
     branches['TempBasalDuration'      ] = BRCL('C',9)
     branches['BolusType'              ] = BRCL('C',10)
     branches['BolusVolumeSelected'    ] = BRCL('F',11)
-    branches['BolusVolumeDelivered'   ] = BRCL('F',12)
+    branches['BolusVolumeDelivered'   ] = BRCL('F',12) # line[line['subType']]  ?????
     branches['ProgrammedBolusDuration'] = BRCL('C',13)
     branches['PrimeType'              ] = BRCL('C',14)
     branches['PrimeVolumeDelivered'   ] = BRCL('F',15)
     branches['Suspend'                ] = BRCL('C',16)
     branches['Rewind'                 ] = BRCL('O',17)
     branches['BWZEstimate'            ] = BRCL('F',18)
-    branches['BWZTargetHighBG'        ] = BRCL('I',19)
-    branches['BWZTargetLowBG'         ] = BRCL('I',20)
-    branches['BWZCarbRatio'           ] = BRCL('F',21)
-    branches['BWZInsulinSensitivity'  ] = BRCL('I',22)
-    branches['BWZCarbInput'           ] = BRCL('I',23)
-    branches['BWZBGInput'             ] = BRCL('I',24)
-    branches['BWZCorrectionEstimate'  ] = BRCL('F',25)
-    branches['BWZFoodEstimate'        ] = BRCL('F',26)
-    branches['BWZActiveInsulin'       ] = BRCL('F',27)
+    branches['BWZTargetHighBG'        ] = BRCL('I',19) # ['bgTarget']['high']
+    branches['BWZTargetLowBG'         ] = BRCL('I',20) # ['bgTarget']['low']
+    branches['BWZCarbRatio'           ] = BRCL('F',21) # ['insulinCarbRatio']
+    branches['BWZInsulinSensitivity'  ] = BRCL('I',22) # ['insulinSensitivity']
+    branches['BWZCarbInput'           ] = BRCL('I',23) # ['carbInput']
+    branches['BWZBGInput'             ] = BRCL('I',24) # ['bgInput']
+    branches['BWZCorrectionEstimate'  ] = BRCL('F',25) # ['recommended']['correction']
+    branches['BWZFoodEstimate'        ] = BRCL('F',26) # ['recommended']['carb']
+    branches['BWZActiveInsulin'       ] = BRCL('F',27) # ??? 'net' ???
     branches['Alarm'                  ] = BRCL('C',28)
     branches['SensorCalibrationBG'    ] = BRCL('I',29)
     branches['SensorGlucose'          ] = BRCL('I',30)

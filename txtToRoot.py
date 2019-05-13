@@ -76,12 +76,7 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
         if not isDataLine :
             continue
 
-        for br in ['Index','Date','Time','Timestamp'] :
-            val = linevector[branches[br].csvIndex]
-            setattr(sDetailed,br,branches[br].formatValue(val))
-
-        sDetailed.UniversalTime = MyTime.TimeFromString(linevector[3])
-        uTime = sDetailed.UniversalTime
+        uTime = MyTime.TimeFromString(linevector[3])
 
         #
         # We take only the "BGReceived" BG data, to avoid double-counting.
@@ -102,7 +97,7 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
         #
         # For the Year-In-Review plot
         #
-        sSummary.UniversalTime = MyTime.TimeFromString(linevector[3])
+        sSummary.UniversalTime = uTime
         sSummary.WeekOfYear = MyTime.GetWeekOfYear(uTime)
         for br in ['BGReading','BWZCarbInput','Rewind'] :
             setattr(sSummary,br, branches[br].getFormattedValueFromVector(linevector) )
@@ -123,9 +118,9 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
         #
         # sSummary.BGReading > 0
         #
-        if sSummary.BGReading > 0 and ((uTime-storage.last_sensor_isig_age)/float(MyTime.OneMinute) <= 5.) :
-            #print 'age:',(uTime-storage.last_sensor_isig_age)/float(MyTime.OneMinute),
-            #print 'isig:',storage.last_sensor_isig,'bg:',storage.last_sensor_bg
+        age_of_last_isig_minutes = (uTime-storage.last_sensor_isig_age)/float(MyTime.OneMinute)
+
+        if sSummary.BGReading > 0 and (age_of_last_isig_minutes <= 5.) :
             sSummary.RecentSensorISIG = storage.last_sensor_isig
             sSummary.RecentSensorGlucose = storage.last_sensor_bg
             sSummary.MARD = (storage.last_sensor_bg - sSummary.BGReading)/float(sSummary.BGReading)
@@ -146,6 +141,11 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
         if MyTime.WeeksOld(uTime) > options.ndetailed :
             continue
 
+        for br in ['Index','Date','Time','Timestamp'] :
+            val = linevector[branches[br].csvIndex]
+            setattr(sDetailed,br,branches[br].formatCSVValue(val))
+
+        sDetailed.UniversalTime = uTime
         sDetailed.WeekOfYear              = MyTime.GetWeekOfYear(uTime)
         sDetailed.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(uTime)
         sDetailed.HourOfDayFromFourAM     = MyTime.GetHourOfDay(uTime)

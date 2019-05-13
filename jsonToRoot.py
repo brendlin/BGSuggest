@@ -25,6 +25,23 @@ def main(options,args) :
 
     return
 
+def ResetAddresses(bgstruct) :
+    # reset addresses:
+    for br in dir(bgstruct) :
+        if '__' in br :
+            continue
+        if br in branches.keys() :
+            setattr(bgstruct,br,branches[br].DefaultValue())
+        elif type(getattr(bgstruct,br)) == type(long(1)) :
+            setattr(bgstruct,br,0)
+        else :
+            setattr(bgstruct,br,-1)
+    return
+
+def ToMgDL(value,cfactor) :
+    if cfactor == 1 :
+        return value
+    return int( round(value * cfactor) )
 
 def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                     treeSummary,sSummary,
@@ -43,33 +60,64 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             continue
 
         # reset addresses:
-        for br in dir(sDetailed) :
-            if '__' in br :
-                continue
-            setattr(sDetailed,br,0)
+        ResetAddresses(sDetailed)
+        ResetAddresses(sSummary)
 
         for j in line.keys() :
             if j in keys :
                 continue
             keys.append(j)
 
-        sDetailed.UniversalTime = MyTime.TimeFromString(line['deviceTime'])
-        uTime = sDetailed.UniversalTime
+        uTime = MyTime.TimeFromString(line['deviceTime'])
 
-        sDetailed.WeekOfYear              = MyTime.GetWeekOfYear(uTime)
-        sDetailed.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(uTime)
-        sDetailed.HourOfDayFromFourAM     = MyTime.GetHourOfDay(uTime)
-        sDetailed.TimeOfDayFromFourAM     = float(MyTime.GetTimeOfDay(uTime))
+        #
+        # Summary info (long-term)
+        #
+        sSummary.UniversalTime = uTime
+        sSummary.WeekOfYear = MyTime.GetWeekOfYear(uTime)
 
-        type = line.get('type',None)
-        if type not in ['cbg','smbg','basal','deviceEvent','bolus','wizard','pumpSettings'] :
-            print type
+        # Conversion from mmol/L to mg/dL (found in TidePool code)
+        cfactor = 1
+        if line.get('units',None) == 'mmol/L' :
+            cfactor = 18.01559
 
-        if line.get('type',None) == 'smbg' :
-            conversion_factor = 1
-            if line.get('units',None) == 'mmol/L' :
-                conversion_factor = 18.01559
-            sDetailed.BGReading = int( round(line.get('value') * conversion_factor) )
+        itype = line.get('type',None)
+
+        if itype == 'smbg' :
+            sSummary.BGReading = ToMgDL(line.get('value'),cfactor)
+
+        #
+        # If it's older than 4 weeks old, do not do a detailed review.
+        #
+        #print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
+        if MyTime.WeeksOld(uTime) > options.ndetailed :
+            continue
+
+        #
+        # Filling the detailed info, below:
+        #
+        sDetailed.UniversalTime       = uTime
+        sDetailed.WeekOfYear          = MyTime.GetWeekOfYear(uTime)
+        sDetailed.DayOfWeekFromMonday = MyTime.GetDayOfWeek(uTime)
+        sDetailed.HourOfDayFromFourAM = MyTime.GetHourOfDay(uTime)
+        sDetailed.TimeOfDayFromFourAM = float(MyTime.GetTimeOfDay(uTime))
+
+        sDetailed.BGReading = sSummary.BGReading
+
+        if itype == 'bolus' :
+            # to-do: handle subType
+            if line['subType'] != 'normal' :
+                print 'Error - need to handle %s (non-normal) subType!'%(line['subType'])
+                import sys; sys.exit()
+            sDetailed.BolusVolumeDelivered = line[line['subType']] # bolus volume Delivered? Selected?
+
+        elif itype == 'wizard' :
+            sDetailed.BWZTargetHighBG = ToMgDL(line['bgTarget']['high'],cfactor)
+            sDetailed.BWZTargetLowBG  = ToMgDL(line['bgTarget']['low'] ,cfactor)
+            sDetailed.BWZInsulinSensitivity = ToMgDL(line['insulinSensitivity'],cfactor)
+            sDetailed.BWZCarbInput = line['carbInput']
+            sDetailed.BWZCarbRatio = line['insulinCarbRatio']
+            sDetailed.BWZBGInput   = ToMgDL(line.get('bgInput',0),cfactor)
 
         treeDetailed.Fill()
 
