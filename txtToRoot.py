@@ -14,79 +14,15 @@ from ImportHelpers import dataStorageInstance as storage
 
 def main(options,args) :
 
-    rootfilename = 'output.root'
-    datadir = 'data'
+    # All of the setup is now done in this wrapper function
+    ImportHelpers.mainImportFunction(options,args,ProcessFile)
 
-    import os
-    thedir = os.listdir(datadir)
-    inputfilenames = []
-    for d in thedir :
-        if 'Export' in d and 'csv' in d :
-            inputfilenames.append('%s/%s'%(datadir,d))
-
-    inputfilenames = sorted(inputfilenames)
-    print inputfilenames
-
-    ROOT.gROOT.LoadMacro('bgrootstruct.h+')
-
-    rootfile = TFile(rootfilename,"RECREATE")
-
-    treeDetailed = ROOT.TTree("DetailedResults","Detailed Results")
-    sDetailed = ROOT.bgrootstruct()
-
-    basal_histograms = ImportHelpers.SettingsHistograms('Basal')
-    sensi_histograms = ImportHelpers.SettingsHistograms('Sensitivity')
-    ric_histograms = ImportHelpers.SettingsHistograms('RIC')
-
-    ##
-    ## Stuff for studing MARD and stuff.
-    ## These are lists in order to enable "pass by reference" in python
-    ##
-
-    for br in branches.keys() :
-        treeDetailed.Branch(br,ROOT.AddressOf(sDetailed,br),'%s/%s'%(br,branches[br].btype))
-
-    #
-    # Add Derived values to detailed tree
-    #
-    ImportHelpers.AddTimeBranchesToTree(treeDetailed,sDetailed)
-    ImportHelpers.AddTimeCourtesyBranchesToTree(treeDetailed,sDetailed)
-
-    #
-    # Long-term data, which saves only a subset of the data.
-    #
-    rootfile_all = TFile('output_LongTermSummary.root','RECREATE')
-    treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
-    sSummary = ROOT.bgrootstruct()
-
-    ImportHelpers.AddTimeBranchesToTree(treeSummary,sSummary)
-    ImportHelpers.AddBasicBranchesToTree(treeSummary,sSummary)
-
-    import time
-    time_right_now = long(time.time())
-
-    for inputfilename in inputfilenames :
-        ProcessFile(inputfilename,treeDetailed,sDetailed,
-                    treeSummary,sSummary,
-                    basal_histograms,sensi_histograms,ric_histograms)
-
-
-    for settings_class in [basal_histograms,sensi_histograms,ric_histograms] :
-        settings_class.WriteToFile(rootfile)
-        settings_class.WriteToFile(rootfile_all)
-
-    rootfile.Write()
-    rootfile.Close()
-
-    rootfile_all.Write()
-    rootfile_all.Close()
-
-    print
     return
 
 def ProcessFile(inputfilename,treeDetailed,sDetailed,
                 treeSummary,sSummary,
-                basal_histograms,sensi_histograms,ric_histograms) :
+                basal_histograms,sensi_histograms,ric_histograms,
+                options) :
 
     inputfile = open(inputfilename,'r')
     for line in inputfile:
@@ -228,6 +164,12 @@ if __name__ == '__main__' :
     from optparse import OptionParser
     p = OptionParser()
     p.add_option('--ndetailed',type='int',default=4,dest='ndetailed',help='Number of weeks of detail (4)')
+    p.add_option('--outname'  ,type='string',default='output.root',dest='outname',help='Output root file name')
+    p.add_option('--datadir'  ,type='string',default='data',dest='datadir',help='Data directory')
+
     options,args = p.parse_args()
+
+    # We will only process Medtronic csv files:
+    options.match_regexp = ['CareLink_Export.*csv']
 
     main(options,args)

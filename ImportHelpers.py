@@ -191,3 +191,76 @@ class SettingsHistograms :
             iterator += 0.5
 
         return 0
+
+#
+# This function is meant to run the whole job basically.
+# The setup is done here, and then you plug in the specific function you want to run over.
+#
+def mainImportFunction(options,args,ProcessFileFunction) :
+    import os
+    import re
+    from string import ascii_letters
+
+    inputfilenames = []
+    for d in os.listdir(options.datadir) :
+        # options.match_regexp should be a list of regexp tries
+        # (e.g. ['CareLink_Export.*csv','Tidepool_Export.*json']
+        matches = list( bool(re.match(matchstr,d)) for matchstr in options.match_regexp)
+        if (True in matches) :
+            inputfilenames.append('%s/%s'%(options.datadir,d))
+
+    def cmp_mine(a, b):
+        return cmp(a.lstrip(ascii_letters+'/_'),b.lstrip(ascii_letters+'/_'))
+
+    inputfilenames = sorted(inputfilenames,cmp=cmp_mine)
+    print inputfilenames
+
+    ROOT.gROOT.LoadMacro('bgrootstruct.h+')
+
+    rootfile = ROOT.TFile(options.outname,"RECREATE")
+
+    treeDetailed = ROOT.TTree("DetailedResults","Detailed Results")
+    sDetailed = ROOT.bgrootstruct()
+
+    basal_histograms = SettingsHistograms('Basal')
+    sensi_histograms = SettingsHistograms('Sensitivity')
+    ric_histograms = SettingsHistograms('RIC')
+
+    #
+    # Add all of the (detailed) branches
+    #
+    for br in branches.keys() :
+        treeDetailed.Branch(br,ROOT.AddressOf(sDetailed,br),'%s/%s'%(br,branches[br].btype))
+
+    #
+    # Add Derived values to detailed tree
+    #
+    AddTimeBranchesToTree(treeDetailed,sDetailed)
+    AddTimeCourtesyBranchesToTree(treeDetailed,sDetailed)
+
+    #
+    # Long-term data, which saves only a subset of the data.
+    #
+    rootfile_all = ROOT.TFile(options.outname.replace('.root','_LongTermSummary.root'),'RECREATE')
+    treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
+    sSummary = ROOT.bgrootstruct()
+
+    AddTimeBranchesToTree(treeSummary,sSummary)
+    AddBasicBranchesToTree(treeSummary,sSummary)
+
+    for inputfilename in inputfilenames :
+        ProcessFileFunction(inputfilename,treeDetailed,sDetailed,
+                            treeSummary,sSummary,
+                            basal_histograms,sensi_histograms,ric_histograms,
+                            options)
+
+    for settings_class in [basal_histograms,sensi_histograms,ric_histograms] :
+        settings_class.WriteToFile(rootfile)
+        settings_class.WriteToFile(rootfile_all)
+
+    for f in [rootfile,rootfile_all] :
+        f.Write()
+        f.Close()
+
+    print
+    return
