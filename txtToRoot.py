@@ -15,14 +15,18 @@ from ImportHelpers import dataStorageInstance as storage
 def main(options,args) :
 
     # All of the setup is now done in this wrapper function
-    ImportHelpers.mainImportFunction(options,args,ProcessFile)
+    manager = ImportHelpers.ImportManager(options,args)
+    inputfilenames = manager.GetInputFiles()
+
+    for inputfilename in inputfilenames :
+        manager.ProcessFile(inputfilename,ProcessFileCSV)
 
     return
 
-def ProcessFile(inputfilename,treeDetailed,sDetailed,
-                treeSummary,sSummary,
-                basal_histograms,sensi_histograms,ric_histograms,
-                options) :
+def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
+                   treeSummary,sSummary,
+                   basal_histograms,sensi_histograms,ric_histograms,
+                   options) :
 
     inputfile = open(inputfilename,'r')
     for line in inputfile:

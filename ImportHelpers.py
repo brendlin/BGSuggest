@@ -1,4 +1,5 @@
 import ROOT
+import os
 
 # BRanch CLass (for info on the tree branches)
 class BRCL :
@@ -193,74 +194,88 @@ class SettingsHistograms :
         return 0
 
 #
-# This function is meant to run the whole job basically.
-# The setup is done here, and then you plug in the specific function you want to run over.
+# This class is supposed to "manage the input".
+# This means the files and trees are set up, and there is a function for getting the input files.
+# Then you process a file by giving it both the file and the function used to process it.
+# Obviously you need to know what ImportManager looks like to make a reasonable ProcessFile function,
+# but this should put all of the "common" aspects of importing in once place.
 #
-def mainImportFunction(options,args,ProcessFileFunction) :
-    import os
-    import re
-    from string import ascii_letters
+class ImportManager :
 
-    inputfilenames = []
-    for d in os.listdir(options.datadir) :
-        # options.match_regexp should be a list of regexp tries
-        # (e.g. ['CareLink_Export.*csv','Tidepool_Export.*json']
-        matches = list( bool(re.match(matchstr,d)) for matchstr in options.match_regexp)
-        if (True in matches) :
-            inputfilenames.append('%s/%s'%(options.datadir,d))
+    def __init__(self,options,args) :
+        self.options = options
 
-    def cmp_mine(a, b):
-        return cmp(a.lstrip(ascii_letters+'/_'),b.lstrip(ascii_letters+'/_'))
+        ROOT.gROOT.LoadMacro('bgrootstruct.h+')
 
-    inputfilenames = sorted(inputfilenames,cmp=cmp_mine)
-    print inputfilenames
+        self.rootfile = ROOT.TFile(options.outname,"RECREATE")
+        self.treeDetailed = ROOT.TTree("DetailedResults","Detailed Results")
+        self.sDetailed = ROOT.bgrootstruct()
 
-    ROOT.gROOT.LoadMacro('bgrootstruct.h+')
+        self.basal_histograms = SettingsHistograms('Basal')
+        self.sensi_histograms = SettingsHistograms('Sensitivity')
+        self.ric_histograms = SettingsHistograms('RIC')
 
-    rootfile = ROOT.TFile(options.outname,"RECREATE")
+        #
+        # Add all of the (detailed) branches
+        #
+        for br in branches.keys() :
+            self.treeDetailed.Branch(br,ROOT.AddressOf(self.sDetailed,br),'%s/%s'%(br,branches[br].btype))
 
-    treeDetailed = ROOT.TTree("DetailedResults","Detailed Results")
-    sDetailed = ROOT.bgrootstruct()
+        #
+        # Add Derived values to detailed tree
+        #
+        AddTimeBranchesToTree(self.treeDetailed,self.sDetailed)
+        AddTimeCourtesyBranchesToTree(self.treeDetailed,self.sDetailed)
 
-    basal_histograms = SettingsHistograms('Basal')
-    sensi_histograms = SettingsHistograms('Sensitivity')
-    ric_histograms = SettingsHistograms('RIC')
+        #
+        # Long-term data, which saves only a subset of the data.
+        #
+        self.rootfile_all = ROOT.TFile(options.outname.replace('.root','_LongTermSummary.root'),'RECREATE')
+        self.treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
+        self.sSummary = ROOT.bgrootstruct()
 
-    #
-    # Add all of the (detailed) branches
-    #
-    for br in branches.keys() :
-        treeDetailed.Branch(br,ROOT.AddressOf(sDetailed,br),'%s/%s'%(br,branches[br].btype))
+        AddTimeBranchesToTree(self.treeSummary,self.sSummary)
+        AddBasicBranchesToTree(self.treeSummary,self.sSummary)
 
-    #
-    # Add Derived values to detailed tree
-    #
-    AddTimeBranchesToTree(treeDetailed,sDetailed)
-    AddTimeCourtesyBranchesToTree(treeDetailed,sDetailed)
+        return
 
-    #
-    # Long-term data, which saves only a subset of the data.
-    #
-    rootfile_all = ROOT.TFile(options.outname.replace('.root','_LongTermSummary.root'),'RECREATE')
-    treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
-    sSummary = ROOT.bgrootstruct()
 
-    AddTimeBranchesToTree(treeSummary,sSummary)
-    AddBasicBranchesToTree(treeSummary,sSummary)
+    def GetInputFiles(self) :
+        import re
+        from string import ascii_letters
 
-    for inputfilename in inputfilenames :
-        ProcessFileFunction(inputfilename,treeDetailed,sDetailed,
-                            treeSummary,sSummary,
-                            basal_histograms,sensi_histograms,ric_histograms,
-                            options)
+        inputfilenames = []
+        for d in os.listdir(self.options.datadir) :
+            # options.match_regexp should be a list of regexp tries
+            # (e.g. ['CareLink_Export.*csv','Tidepool_Export.*json']
+            matches = list( bool(re.match(matchstr,d)) for matchstr in self.options.match_regexp)
+            if (True in matches) :
+                inputfilenames.append('%s/%s'%(self.options.datadir,d))
 
-    for settings_class in [basal_histograms,sensi_histograms,ric_histograms] :
-        settings_class.WriteToFile(rootfile)
-        settings_class.WriteToFile(rootfile_all)
+        def cmp_mine(a, b):
+            return cmp(a.lstrip(ascii_letters+'/_'),b.lstrip(ascii_letters+'/_'))
 
-    for f in [rootfile,rootfile_all] :
-        f.Write()
-        f.Close()
+        inputfilenames = sorted(inputfilenames,cmp=cmp_mine)
+        print inputfilenames
+        return inputfilenames
 
-    print
-    return
+
+    def ProcessFile(self,inputfilename,ProcessFileFunction) :
+        ProcessFileFunction(inputfilename,self.treeDetailed,self.sDetailed,
+                            self.treeSummary,self.sSummary,
+                            self.basal_histograms,self.sensi_histograms,self.ric_histograms,
+                            self.options)
+
+
+    def Finish(self) :
+
+        for settings_class in [self.basal_histograms,self.sensi_histograms,self.ric_histograms] :
+            settings_class.WriteToFile(rootfile)
+            settings_class.WriteToFile(rootfile_all)
+
+        for f in [self.rootfile,self.rootfile_all] :
+            f.Write()
+            f.Close()
+
+        print
+        return
