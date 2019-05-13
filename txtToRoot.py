@@ -113,94 +113,96 @@ for inputfilename in inputfilenames :
         #
         # The standard data collection.
         #
-        if len(linevector) == 39 and linevector[0] != "Index":
+        isDataLine = (len(linevector) == 39) and (linevector[0] != "Index")
+        if not isDataLine :
+            continue
 
-            for br in ['Index','Date','Time','Timestamp'] :
-                val = linevector[branches[br].csvIndex]
-                setattr(s,br,branches[br].formatValue(val))
+        for br in ['Index','Date','Time','Timestamp'] :
+            val = linevector[branches[br].csvIndex]
+            setattr(s,br,branches[br].formatValue(val))
 
-            s.UniversalTime           = MyTime.TimeFromString(linevector[3])
+        s.UniversalTime           = MyTime.TimeFromString(linevector[3])
 
-            #
-            # We take only the "BGReceived" BG data, to avoid double-counting.
-            # linevector[5] = BGReading and linevector[6] = LinkedBGMeterID
-            #
-            if linevector[5] and (not str(linevector[6])) :
-                continue
+        #
+        # We take only the "BGReceived" BG data, to avoid double-counting.
+        # linevector[5] = BGReading and linevector[6] = LinkedBGMeterID
+        #
+        if linevector[5] and (not str(linevector[6])) :
+            continue
 
-            #
-            # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
-            # The text field is linevector[33]
-            if 'JournalEntryMealMarker' in linevector[33] :
-                # Hack to save carbs [23], carb ratio [21] and sensitivity [22]:
-                linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0].split()[0]
-                linevector[21] = ric_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
-                linevector[22] = sensi_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
+        #
+        # For JournalEntryMealMarker we enter that into the BWZEstimate entry.
+        # The text field is linevector[33]
+        if 'JournalEntryMealMarker' in linevector[33] :
+            # Hack to save carbs [23], carb ratio [21] and sensitivity [22]:
+            linevector[23] = line.split('CARB_INPUT=')[1].split(',')[0].split()[0]
+            linevector[21] = ric_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
+            linevector[22] = sensi_histograms.GetSettingFromHistogram(MyTime.GetTimeOfDay(s.UniversalTime))
 
-            #
-            # For the Year-In-Review plot
-            #
-            s2.UniversalTime = MyTime.TimeFromString(linevector[3])
-            s2.WeekOfYear = MyTime.GetWeekOfYear(s.UniversalTime)
-            for br in ['BGReading','BWZCarbInput','Rewind'] :
-                setattr(s2,br, branches[br].getFormattedValueFromVector(linevector) )
+        #
+        # For the Year-In-Review plot
+        #
+        s2.UniversalTime = MyTime.TimeFromString(linevector[3])
+        s2.WeekOfYear = MyTime.GetWeekOfYear(s.UniversalTime)
+        for br in ['BGReading','BWZCarbInput','Rewind'] :
+            setattr(s2,br, branches[br].getFormattedValueFromVector(linevector) )
 
-            #
-            # get new sensor time (UTC) - for cumulative plots
-            #
-            if 'SensorSync' in linevector[33] and 'SYNC_TYPE=new' in linevector[34] :
-                sensor_age_utc = s.UniversalTime
-            #
-            # temporarily store last sensor measurement
-            #
-            if 'GlucoseSensorData' in linevector[33] :
-               sensor_isig_age = s.UniversalTime
-               sensor_isig = branches['ISIGValue'].getFormattedValueFromVector(linevector)
-               sensor_bg = branches['SensorGlucose'].getFormattedValueFromVector(linevector)
+        #
+        # get new sensor time (UTC) - for cumulative plots
+        #
+        if 'SensorSync' in linevector[33] and 'SYNC_TYPE=new' in linevector[34] :
+            sensor_age_utc = s.UniversalTime
+        #
+        # temporarily store last sensor measurement
+        #
+        if 'GlucoseSensorData' in linevector[33] :
+           sensor_isig_age = s.UniversalTime
+           sensor_isig = branches['ISIGValue'].getFormattedValueFromVector(linevector)
+           sensor_bg = branches['SensorGlucose'].getFormattedValueFromVector(linevector)
 
-            #
-            # s2.BGReading > 0
-            #
-            if s2.BGReading > 0 and ((s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute) <= 5.) :
-                #print 'age:',(s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute),
-                #print 'isig:',sensor_isig,'bg:',sensor_bg
-                s2.RecentSensorISIG = sensor_isig
-                s2.RecentSensorGlucose = sensor_bg
-                s2.MARD = (sensor_bg - s2.BGReading)/float(s2.BGReading)
-                s2.SensorAgeDays = (s.UniversalTime-sensor_age_utc)/float(MyTime.OneDay)
-            else :
-                s2.RecentSensorISIG = -1.
-                s2.RecentSensorGlucose = -1
-                s2.MARD = -100.
-                s2.SensorAgeDays = -1.
+        #
+        # s2.BGReading > 0
+        #
+        if s2.BGReading > 0 and ((s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute) <= 5.) :
+            #print 'age:',(s.UniversalTime-sensor_isig_age)/float(MyTime.OneMinute),
+            #print 'isig:',sensor_isig,'bg:',sensor_bg
+            s2.RecentSensorISIG = sensor_isig
+            s2.RecentSensorGlucose = sensor_bg
+            s2.MARD = (sensor_bg - s2.BGReading)/float(s2.BGReading)
+            s2.SensorAgeDays = (s.UniversalTime-sensor_age_utc)/float(MyTime.OneDay)
+        else :
+            s2.RecentSensorISIG = -1.
+            s2.RecentSensorGlucose = -1
+            s2.MARD = -100.
+            s2.SensorAgeDays = -1.
 
-            if s2.BGReading > 0 or s2.BWZFoodEstimate > 0 or s2.Rewind :
-                tree2.Fill()
+        if s2.BGReading > 0 or s2.BWZFoodEstimate > 0 or s2.Rewind :
+            tree2.Fill()
 
-            #
-            # If it's older than 4 weeks old, do not do a detailed review.
-            #
-            print '%s %d \r'%(MyTime.StringFromTime(s.UniversalTime),MyTime.WeeksOld(s.UniversalTime)),
-            if MyTime.WeeksOld(s.UniversalTime) > 4 :
-                continue
+        #
+        # If it's older than 4 weeks old, do not do a detailed review.
+        #
+        print '%s %d \r'%(MyTime.StringFromTime(s.UniversalTime),MyTime.WeeksOld(s.UniversalTime)),
+        if MyTime.WeeksOld(s.UniversalTime) > 4 :
+            continue
 
-            s.WeekOfYear              = MyTime.GetWeekOfYear(s.UniversalTime)
-            s.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(s.UniversalTime)
-            s.HourOfDayFromFourAM     = MyTime.GetHourOfDay(s.UniversalTime)
-            s.TimeOfDayFromFourAM     = float(MyTime.GetTimeOfDay(s.UniversalTime))
+        s.WeekOfYear              = MyTime.GetWeekOfYear(s.UniversalTime)
+        s.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(s.UniversalTime)
+        s.HourOfDayFromFourAM     = MyTime.GetHourOfDay(s.UniversalTime)
+        s.TimeOfDayFromFourAM     = float(MyTime.GetTimeOfDay(s.UniversalTime))
 
-            # Fill the rest of the branches.
-            for br in ['NewDeviceTime','BGReading','TempBasalAmount','TempBasalType',
-                       'TempBasalDuration','BolusType','BolusVolumeSelected',
-                       'BolusVolumeDelivered','ProgrammedBolusDuration','PrimeType',
-                       'PrimeVolumeDelivered','Suspend','Rewind','BWZEstimate','BWZTargetHighBG',
-                       'BWZTargetLowBG','BWZCarbRatio','BWZInsulinSensitivity','BWZCarbInput',
-                       'BWZBGInput','BWZCorrectionEstimate','BWZFoodEstimate','BWZActiveInsulin',
-                       'Alarm','SensorCalibrationBG','SensorGlucose','ISIGValue','DailyInsulinTotal',
-                       'RawType','RawValues','RawID','RawUploadID','RawSeqNum','RawDeviceType'] :
-                setattr(s,br, branches[br].getFormattedValueFromVector(linevector) )
+        # Fill the rest of the branches.
+        for br in ['NewDeviceTime','BGReading','TempBasalAmount','TempBasalType',
+                   'TempBasalDuration','BolusType','BolusVolumeSelected',
+                   'BolusVolumeDelivered','ProgrammedBolusDuration','PrimeType',
+                   'PrimeVolumeDelivered','Suspend','Rewind','BWZEstimate','BWZTargetHighBG',
+                   'BWZTargetLowBG','BWZCarbRatio','BWZInsulinSensitivity','BWZCarbInput',
+                   'BWZBGInput','BWZCorrectionEstimate','BWZFoodEstimate','BWZActiveInsulin',
+                   'Alarm','SensorCalibrationBG','SensorGlucose','ISIGValue','DailyInsulinTotal',
+                   'RawType','RawValues','RawID','RawUploadID','RawSeqNum','RawDeviceType'] :
+            setattr(s,br, branches[br].getFormattedValueFromVector(linevector) )
 
-            tree.Fill()    
+        tree.Fill()
 
 print
 
