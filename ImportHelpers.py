@@ -74,6 +74,11 @@ def GetTreeBranchClassesDict() :
     branches['RawDeviceType'          ] = BRCL('C',38)
     return branches
 
+# Do not worry - if you import this file multiple times, you will not create multiple instances.
+# The module will be loaded once, and each subsequent "import" will just link the file to
+# the static state of the first-imported file.
+branches = GetTreeBranchClassesDict()
+
 def AddTimeBranchesToTree(tree,addresses) :
     tree.Branch("UniversalTime"          ,ROOT.AddressOf(addresses,"UniversalTime"          ),"UniversalTime"          +"/l")
     tree.Branch("WeekOfYear"             ,ROOT.AddressOf(addresses,"WeekOfYear"             ),"WeekOfYear"             +'/I') # First week of the year is short
@@ -92,6 +97,15 @@ def AddBasicBranchesToTree(tree,addresses) :
     tree.Branch("RecentSensorISIG"       ,ROOT.AddressOf(addresses,"RecentSensorISIG"       ),"RecentSensorISIG"       +"/F")
     tree.Branch("MARD"                   ,ROOT.AddressOf(addresses,"MARD"                   ),"MARD"                   +"/F")
     tree.Branch("SensorAgeDays"          ,ROOT.AddressOf(addresses,"SensorAgeDays"          ),"SensorAgeDays"          +"/F")
+
+
+class CrossDatumDataStorage :
+    current_sensor_age_utc = -1
+    last_sensor_isig_age = -1
+    last_sensor_isig = -1
+    last_sensor_bg = -1
+
+dataStorageInstance = CrossDatumDataStorage()
 
 class SettingsHistograms :
 

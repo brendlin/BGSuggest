@@ -12,11 +12,11 @@ def main(options,args) :
 
     plotfunc.SetupStyle()
 
-    f = ROOT.TFile('output_all.root')
-    e = f.Get('LongTerm')
+    f = ROOT.TFile('output_LongTermSummary.root')
+    e = f.Get('LongTermSummary')
     
     f_shortterm = ROOT.TFile('output.root')
-    e_shortterm = f_shortterm.Get('FullResults')
+    e_shortterm = f_shortterm.Get('DetailedResults')
 
     canvases = []
 

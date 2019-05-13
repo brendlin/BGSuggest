@@ -90,6 +90,11 @@ class TimeClass :
         # Hour after 4am
         return self.nWeekToUniversal(week) + day*self.OneDay + hour*self.OneHour + minute*self.OneMinute
 
+# Do not worry - if you import this file multiple times, you will not create multiple instances.
+# The module will be loaded once, and each subsequent "import" will just link the file to
+# the static state of the first-imported file.
+MyTime = TimeClass()
+
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
     if formula_type == 'ADA' :
