@@ -1,13 +1,11 @@
 import ROOT
-from ROOT import TFile
 import sys
 import time
-from PyBGSuggestHelpers import TimeClass
-import os
-import json
+from PyBGSuggestHelpers import MyTime
 import ImportHelpers
-
-MyTime = TimeClass()
+from ImportHelpers import branches
+from ImportHelpers import dataStorageInstance as storage
+import json
 
 ##
 ## This converts the json format of TidePool to root TTree format.
@@ -15,61 +13,79 @@ MyTime = TimeClass()
 
 def main(options,args) :
 
-    rootfilename = 'output_json.root'
-    inputfilename = 'data/data_download.json'
+    # All of the setup is now done in this wrapper function
+    manager = ImportHelpers.ImportManager(options,args)
+    inputfilenames = manager.GetInputFiles()
 
-    ROOT.gROOT.LoadMacro('bgrootstruct.h+')
+    for inputfilename in inputfilenames :
+        manager.ProcessFile(inputfilename,ProcessFileJSON)
 
-    rootfile = TFile(rootfilename,"RECREATE")
+    # Save output
+    manager.Finish()
 
-    tree = ROOT.TTree("FullResults","Full Results")
-    s = ROOT.bgrootstruct()
+    return
 
-    basal_histograms = ImportHelpers.SettingsHistograms('Basal')
-    sensi_histograms = ImportHelpers.SettingsHistograms('Sensitivity')
-    ric_histograms = ImportHelpers.SettingsHistograms('RIC')
 
-    branches = ImportHelpers.GetTreeBranchClassesDict()
-
-    for br in branches.keys() :
-        tree.Branch(br,ROOT.AddressOf(s,br),'%s/%s'%(br,branches[br].btype))
-
-    #
-    # Add Derived values to detailed tree
-    #
-    ImportHelpers.AddTimeBranchesToTree(tree,s)
-    ImportHelpers.AddTimeCourtesyBranchesToTree(tree,s)
-
-    import time
-    time_right_now = long(time.time())
+def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
+                    treeSummary,sSummary,
+                    basal_histograms,sensi_histograms,ric_histograms,
+                    options) :
 
     keys = []
     json_file = open(inputfilename)
 
     data = json.load(json_file)
+
+    # Process from earliest to latest
     for line in reversed(data) :
 
         if 'deviceTime' not in line.keys() :
             continue
+
+        # reset addresses:
+        for br in dir(sDetailed) :
+            if '__' in br :
+                continue
+            setattr(sDetailed,br,0)
 
         for j in line.keys() :
             if j in keys :
                 continue
             keys.append(j)
 
-        s.UniversalTime = MyTime.TimeFromString(line['deviceTime'])
-        tree.Fill()
+        sDetailed.UniversalTime = MyTime.TimeFromString(line['deviceTime'])
+        uTime = sDetailed.UniversalTime
+
+        sDetailed.WeekOfYear              = MyTime.GetWeekOfYear(uTime)
+        sDetailed.DayOfWeekFromMonday     = MyTime.GetDayOfWeek(uTime)
+        sDetailed.HourOfDayFromFourAM     = MyTime.GetHourOfDay(uTime)
+        sDetailed.TimeOfDayFromFourAM     = float(MyTime.GetTimeOfDay(uTime))
+
+        type = line.get('type',None)
+        if type not in ['cbg','smbg','basal','deviceEvent','bolus','wizard','pumpSettings'] :
+            print type
+
+        if line.get('type',None) == 'smbg' :
+            conversion_factor = 1
+            if line.get('units',None) == 'mmol/L' :
+                conversion_factor = 18.01559
+            sDetailed.BGReading = int( round(line.get('value') * conversion_factor) )
+
+        treeDetailed.Fill()
 
     print keys
-    print
-
-    for settings_class in [basal_histograms,sensi_histograms,ric_histograms] :
-        settings_class.WriteToFile(rootfile)
-
-    rootfile.Write()
-    rootfile.Close()
-
     return
 
 if __name__ == '__main__' :
-    main(None,None)
+    from optparse import OptionParser
+    p = OptionParser()
+    p.add_option('--ndetailed',type='int',default=4,dest='ndetailed',help='Number of weeks of detail (4)')
+    p.add_option('--outname'  ,type='string',default='output_tidepool.root',dest='outname',help='Output root file name')
+    p.add_option('--datadir'  ,type='string',default='data',dest='datadir',help='Data directory')
+
+    options,args = p.parse_args()
+
+    # We will only process Tidepool json files:
+    options.match_regexp = ['Tidepool_Export.*json']
+
+    main(options,args)

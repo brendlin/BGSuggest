@@ -270,8 +270,8 @@ class ImportManager :
     def Finish(self) :
 
         for settings_class in [self.basal_histograms,self.sensi_histograms,self.ric_histograms] :
-            settings_class.WriteToFile(rootfile)
-            settings_class.WriteToFile(rootfile_all)
+            settings_class.WriteToFile(self.rootfile)
+            settings_class.WriteToFile(self.rootfile_all)
 
         for f in [self.rootfile,self.rootfile_all] :
             f.Write()

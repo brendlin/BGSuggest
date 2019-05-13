@@ -1,5 +1,4 @@
 import ROOT
-from ROOT import TFile
 import sys
 import time
 from PyBGSuggestHelpers import MyTime
@@ -20,6 +19,9 @@ def main(options,args) :
 
     for inputfilename in inputfilenames :
         manager.ProcessFile(inputfilename,ProcessFileCSV)
+
+    # Save output
+    manager.Finish()
 
     return
 
