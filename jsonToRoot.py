@@ -110,6 +110,9 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         elif itype == 'smbg' :
             sSummary.BGReading = ToMgDL(line.get('value'),cfactor)
 
+        if sSummary.BGReading > 0 or sSummary.BWZFoodEstimate > 0 or sSummary.Rewind :
+            treeSummary.Fill()
+
         #
         # If it's older than 4 weeks old, do not do a detailed review.
         #
