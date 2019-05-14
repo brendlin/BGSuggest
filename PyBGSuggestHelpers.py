@@ -25,6 +25,7 @@ class TimeClass :
         self.OneWeek     = self.TimeFromString("01/07/13 04:00:00") - self.StartOfYear
         self.OneYear     = self.TimeFromString("12/31/13 04:00:00") - self.StartOfYear
         self.timerightnow = long(time.mktime(time.localtime()))
+        self.MillisecondsInAnHour = 60*60*1000 # 3600000
         
         return
 

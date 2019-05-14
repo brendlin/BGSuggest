@@ -49,9 +49,9 @@ def GetTreeBranchClassesDict() :
     branches['NewDeviceTime'          ] = BRCL('C',4)
     branches['BGReading'              ] = BRCL('I',5) # ['value']
     branches['LinkedBGMeterID'        ] = BRCL('L',6)
-    branches['TempBasalAmount'        ] = BRCL('F',7)
-    branches['TempBasalType'          ] = BRCL('C',8)
-    branches['TempBasalDuration'      ] = BRCL('C',9)
+    branches['TempBasalAmount'        ] = BRCL('F',7) # ['percent'] or ... ????
+    branches['TempBasalType'          ] = BRCL('C',8) # ['deliveryType']
+    branches['TempBasalDuration'      ] = BRCL('L',9) # ['duration']
     branches['BolusType'              ] = BRCL('C',10)
     branches['BolusVolumeSelected'    ] = BRCL('F',11)
     branches['BolusVolumeDelivered'   ] = BRCL('F',12) # line[line['subType']]  ?????
@@ -59,8 +59,8 @@ def GetTreeBranchClassesDict() :
     branches['PrimeType'              ] = BRCL('C',14)
     branches['PrimeVolumeDelivered'   ] = BRCL('F',15)
     branches['Suspend'                ] = BRCL('C',16)
-    branches['Rewind'                 ] = BRCL('O',17)
-    branches['BWZEstimate'            ] = BRCL('F',18)
+    branches['Rewind'                 ] = BRCL('O',17) # 'deviceEvent' and 'reservoirChange'
+    branches['BWZEstimate'            ] = BRCL('F',18) # net, probably ...
     branches['BWZTargetHighBG'        ] = BRCL('I',19) # ['bgTarget']['high']
     branches['BWZTargetLowBG'         ] = BRCL('I',20) # ['bgTarget']['low']
     branches['BWZCarbRatio'           ] = BRCL('F',21) # ['insulinCarbRatio']
@@ -159,6 +159,9 @@ class SettingsHistograms :
         # but it will be CONVERTED to 4am
 
         hist = self.getOrMakeHistogram(histo_tag)
+
+        # hour -> half hour increments
+        timeOfDay_midnight = int(2*int(timeOfDay_midnight))
 
         # half hour increments, 12am to 4am start time conversion:
         timeOfDay_midnight = int(timeOfDay_midnight)

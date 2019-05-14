@@ -78,12 +78,36 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
 
         # Conversion from mmol/L to mg/dL (found in TidePool code)
         cfactor = 1
-        if line.get('units',None) == 'mmol/L' :
+        if line.get('units',None) == 'mmol/L' or line.get('units',{}).get('bg',None) == 'mmol/L' :
             cfactor = 18.01559
 
         itype = line.get('type',None)
 
-        if itype == 'smbg' :
+        #
+        # Collect basal, sensitivity, insulin-carb ratio information
+        #
+        if itype == 'pumpSettings' :
+            timestamp = line['deviceTime']
+
+            for entries in line['basalSchedules']['standard'] :
+                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                basal_histograms.AddSettingToHistogram(timestamp,start_time,entries['rate'])
+
+            for entries in line['insulinSensitivity'] :
+                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                amount = ToMgDL(entries['amount'],cfactor)
+                sensi_histograms.AddSettingToHistogram(timestamp,start_time,amount)
+
+            for entries in line['carbRatio'] :
+                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                ric_histograms.AddSettingToHistogram(timestamp,start_time,entries['amount'])
+
+        #
+        # Rewind, BGReading
+        #
+        elif itype == 'deviceEvent' and line['subType'] == 'reservoirChange' :
+            sSummary.Rewind = 1
+        elif itype == 'smbg' :
             sSummary.BGReading = ToMgDL(line.get('value'),cfactor)
 
         #
@@ -103,6 +127,7 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         sDetailed.TimeOfDayFromFourAM = float(MyTime.GetTimeOfDay(uTime))
 
         sDetailed.BGReading = sSummary.BGReading
+        sDetailed.Rewind    = sSummary.Rewind
 
         if itype == 'bolus' :
             # to-do: handle subType
@@ -118,6 +143,16 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             sDetailed.BWZCarbInput = line['carbInput']
             sDetailed.BWZCarbRatio = line['insulinCarbRatio']
             sDetailed.BWZBGInput   = ToMgDL(line.get('bgInput',0),cfactor)
+
+        # Temp basal
+        elif itype == 'basal' and line['deliveryType'] == 'temp':
+            sDetailed.TempBasalType = 'Percent' if line.get('percent',None) else 'Unknown'
+            if sDetailed.TempBasalType == 'Unknown' :
+                sDetailed.TempBasalAmount = round(line['rate']/float(line['suppressed']['rate']),2)
+                print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
+            else :
+                sDetailed.TempBasalAmount = round(line['percent'],2)
+            sDetailed.TempBasalDuration = line['duration']
 
         treeDetailed.Fill()
 
