@@ -116,7 +116,7 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         #
         # If it's older than 4 weeks old, do not do a detailed review.
         #
-        #print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
+        print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
         if MyTime.WeeksOld(uTime) > options.ndetailed :
             continue
 
@@ -134,10 +134,15 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
 
         if itype == 'bolus' :
             # to-do: handle subType
-            if line['subType'] != 'normal' :
+            if line['subType'] == 'normal' :
+                sDetailed.BolusVolumeDelivered = line[line['subType']] # bolus volume Delivered? Selected?
+            elif line['subType'] == 'square' :
+                sDetailed.BolusVolumeDelivered = line['extended'] # bolus volume Delivered? Selected?
+                sDetailed.ProgrammedBolusDuration = line['duration'] / MyTime.MillisecondsInAnHour
+            else :
                 print 'Error - need to handle %s (non-normal) subType!'%(line['subType'])
+                print line
                 import sys; sys.exit()
-            sDetailed.BolusVolumeDelivered = line[line['subType']] # bolus volume Delivered? Selected?
 
         elif itype == 'wizard' :
             sDetailed.BWZTargetHighBG = ToMgDL(line['bgTarget']['high'],cfactor)
@@ -155,11 +160,12 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                 print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
             else :
                 sDetailed.TempBasalAmount = round(line['percent'],2)
-            sDetailed.TempBasalDuration = line['duration']
+            sDetailed.TempBasalDuration = line['duration'] / MyTime.MillisecondsInAnHour
 
         treeDetailed.Fill()
 
-    print keys
+    if False :
+        print keys
     return
 
 if __name__ == '__main__' :

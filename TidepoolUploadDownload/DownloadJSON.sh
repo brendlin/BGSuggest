@@ -12,4 +12,4 @@ token=$(cat tmp.txt | grep 'session\-token:' | cut -d' ' -f3)
 token="${token//}"
 echo token is $token
 
-curl -s -X GET -H "x-tidepool-session-token: ${token}" -H "Content-Type: application/json" "https://api.tidepool.org/data/${userid}" > data_download.json
+curl -s -X GET -H "x-tidepool-session-token: ${token}" -H "Content-Type: application/json" "https://api.tidepool.org/data/${userid}" > ${1:-download.json}

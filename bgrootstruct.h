@@ -12,11 +12,11 @@ struct bgrootstruct{
   Long64_t    LinkedBGMeterID        ;
   Float_t     TempBasalAmount        ;
   std::string TempBasalType          ;
-  Long64_t    TempBasalDuration      ;
+  Float_t     TempBasalDuration      ; // in hours
   std::string BolusType              ;
   Float_t     BolusVolumeSelected    ;
   Float_t     BolusVolumeDelivered   ;
-  std::string ProgrammedBolusDuration;
+  Float_t     ProgrammedBolusDuration; // in hours
   std::string PrimeType              ;
   Float_t     PrimeVolumeDelivered   ;
   std::string Suspend                ;
