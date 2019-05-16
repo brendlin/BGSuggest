@@ -3,35 +3,92 @@ import PlotFunctions as plotfunc
 import ROOT
 from array import array
 
-def GetAverageBGs(hist,tree,last_week,n_weeks) :
+#-------------------------------------------------------------------------
+def GetAverageBGs(hist,tree,last_week,n_weeks=1) :
+
+    all_vals = []
+
     for i in range(last_week+1) :
-        req = 'BGReading > 00 && WeekOfYear <= %d && WeekOfYear > %d-%d'%(i+1,i+1,n_weeks)
-        #req = 'BGReading > 00 && WeekOfYear == %d'%(i)
+
+        all_vals.append([])
+
+        req = 'BGReading > 0 && WeekOfYear <= %d && WeekOfYear > %d'%(i,i-n_weeks)
         n = tree.Draw('BGReading>>hist%d(100,0,500)'%(i+1),req,'goff')
+        #print req,n
+
         if not n :
-            hist.SetBinContent(i+1,hist.GetBinContent(i))
-            hist.SetBinError(i+1,hist.GetBinError(i))
             continue
 
         Avg = 0
-        vals = []
         for x in range(n) :
             Avg += tree.GetV1()[x]
-            vals.append(tree.GetV1()[x])
+            all_vals[-1].append(tree.GetV1()[x])
+
         Avg = Avg / float(n)
 
         if Avg == 0 :
-            hist.SetBinContent(i+1,hist.GetBinContent(i))
-            hist.SetBinError(i+1,hist.GetBinError(i))
             continue
 
         hist.SetBinContent(i+1,Avg)
-        hist.SetBinError(i+1,RootMeanSquare(vals))
+        hist.SetBinError(i+1,RootMeanSquare(all_vals[-1]))
+
+    return all_vals
+
+#-------------------------------------------------------------------------
+def GetAverageBGsCoarse(hist,all_vals,n_weeks) :
+    # all_vals is the list of lists from GetAverageBGs (when 1 week is specified)
+    # n_weeks is the number of weeks to average over
+
+    for i in range(len(all_vals)) :
+        min_index = max(0,i+1-n_weeks)
+        to_consider = all_vals[min_index:i+1]
+
+        # This is the x-value (bin center)
+        xval = i+0.5
+
+        # Figure out how many weeks are populated:
+        week_populated = list(len(j) > 0 for j in to_consider)
+        n_week_populated = week_populated.count(True)
+
+        # Only compute the average if at least 1/2 of the weeks are populated
+        # If data is stopped, then stop computing the average
+        if (n_week_populated < (n_weeks/2)) or (len(to_consider[-1]) == 0) :
+
+            # Collapse the error bar, if necessary
+            if hist.GetN() and hist.GetX()[hist.GetN()-1] == xval-1 and issubclass(type(hist),type(ROOT.TGraphErrors())) :
+                new_point = hist.GetN()
+                hist.SetPoint(new_point,xval-0.5,hist.GetY()[hist.GetN()-1])
+                hist.SetPointError(new_point,0,0)
+
+            continue
+
+        Avg = 0
+        n = 0
+        vals = []
+        for week in to_consider :
+            for val in week :
+                vals.append(val)
+                Avg += val
+                n += 1
+
+        Avg = Avg / float(n)
+
+        # If previous point is missing, set the error to 0 :
+        if (hist.GetN() == 0 or hist.GetX()[hist.GetN()-1] < xval-1) and issubclass(type(hist),type(ROOT.TGraphErrors())) :
+            new_point = hist.GetN()
+            hist.SetPoint(new_point,xval-0.5,Avg)
+            hist.SetPointError(new_point,0,0)
+
+        # Set the point
+        new_point = hist.GetN()
+        hist.SetPoint(new_point,xval,Avg)
+        if issubclass(type(hist),type(ROOT.TGraphErrors())) :
+            hist.SetPointError(new_point,0,RootMeanSquare(vals))
 
     return
 
 #-------------------------------------------------------------------------
-def YearInReview(tree,nyears=5) :
+def YearInReview(tree,nyears=7) :
 
     #
     # Requred setup
@@ -51,13 +108,16 @@ def YearInReview(tree,nyears=5) :
     #
 
     yir = ROOT.TH1F('AverageBG','1-week average',last_week,0,last_week)
-    GetAverageBGs(yir,tree,last_week,1)
+    perweek_vals = GetAverageBGs(yir,tree,last_week)
 
-    yir_smooth = ROOT.TH1F('4-week average','4-week average',last_week,0,last_week)
-    GetAverageBGs(yir_smooth,tree,last_week,4)
+    yir_smooth = ROOT.TGraph()
+    yir_smooth.SetTitle('4-week average')
+    GetAverageBGsCoarse(yir_smooth,perweek_vals,4)
 
-    yir_17w = ROOT.TH1F('17-week average','17-week average',last_week,0,last_week)
-    GetAverageBGs(yir_17w,tree,last_week,17)
+    yir_17w = ROOT.TGraphErrors()
+    yir_17w.SetTitle('17-week average')
+    GetAverageBGsCoarse(yir_17w,perweek_vals,17)
+    yir_17w_noerr = ROOT.TGraph(yir_17w.GetN(),yir_17w.GetX(),yir_17w.GetY())
 
     yir_food = ROOT.TH1F('Food Intake','Food Intake',nweeks,0,nweeks)
     for i in range(last_week+1) :
@@ -111,7 +171,7 @@ def YearInReview(tree,nyears=5) :
 
     yir_name = 'yir'
     yir_title = 'Year In Review (%s)'%(yir_type)
-    year_in_review = ROOT.TCanvas(yir_name,yir_title,1000,500)
+    year_in_review = ROOT.TCanvas(yir_name,yir_title,1270,500)
     year_in_review.SetLeftMargin(0.16/2.)
     year_in_review.SetRightMargin(0.16/2.)
     year_in_review.SetBottomMargin(0.12)
@@ -126,6 +186,7 @@ def YearInReview(tree,nyears=5) :
         return
 
     Prepare(yir_17w,ROOT.kAzure-2)
+    Prepare(yir_17w_noerr,ROOT.kAzure-2)
     Prepare(yir,ROOT.kBlack)
     Prepare(yir_smooth,ROOT.kRed+1)
 
@@ -137,14 +198,14 @@ def YearInReview(tree,nyears=5) :
     yir_17w.SetTitle('17-week-average')
     plotfunc.AddHistogram(year_in_review,yir_17w,'lE3')
     plotfunc.AddHistogram(year_in_review,yir,'phist')
-    plotfunc.AddHistogram(year_in_review,yir_smooth,'lhist')
+    plotfunc.AddHistogram(year_in_review,yir_smooth,'l')
     # Add yir on top once more.
     yir_17w.SetFillStyle(0)
     yir_17w.SetTitle('remove')
-    plotfunc.AddHistogram(year_in_review,yir_17w,'lhist')
+    plotfunc.AddHistogram(year_in_review,yir_17w_noerr,'l')
     plotfunc.AddHistogram(year_in_review,a1cs,'pl')
     plotfunc.AutoFixAxes(year_in_review)
-    plotfunc.SetAxisLabels(year_in_review,'','<BG> (mg/dL)')
+    plotfunc.SetAxisLabels(year_in_review,'','#LT^{}BG#GT (mg/dL)')
     year_in_review.GetPrimitive('yir_dummy').GetYaxis().SetTitleOffset(0.8)
     year_in_review.GetPrimitive('yir_dummy').GetXaxis().SetLabelOffset(0.008)
     year_in_review.GetPrimitive('yir_dummy').GetXaxis().SetNdivisions(1,1,1,False)
@@ -176,7 +237,7 @@ def YearInReview(tree,nyears=5) :
     other_axis.SetLabelSize(22)
     other_axis.SetTitleFont(43)
     other_axis.SetTitleSize(22)
-    print other_axis.SetTitleOffset(0.7)
+    other_axis.SetTitleOffset(0.7)
     other_axis.SetTitle('HbA_{1}c (%)')
     global tobject_collector;
     plotfunc.tobject_collector.append(other_axis)
