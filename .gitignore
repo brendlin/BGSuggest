@@ -4,5 +4,4 @@
 *.aux
 *.log
 *.pcm
-output.root
-output_all.root
+*.root
