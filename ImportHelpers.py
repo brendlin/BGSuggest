@@ -155,6 +155,9 @@ class SettingsHistograms :
 
     def WriteToFile(self,rootfile) :
 
+        if not rootfile :
+            return
+
         def HistsAreIdentical(h1,h2) :
             identical = True
             for i in range(h1.GetNbinsX()+2) :
@@ -263,12 +266,16 @@ class ImportManager :
         #
         # Long-term data, which saves only a subset of the data.
         #
-        self.rootfile_all = ROOT.TFile(options.outname.replace('.root','_LongTermSummary.root'),'RECREATE')
-        self.treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
         self.sSummary = ROOT.bgrootstruct()
 
-        AddTimeBranchesToTree(self.treeSummary,self.sSummary)
-        AddBasicBranchesToTree(self.treeSummary,self.sSummary)
+        if options.summary :
+            self.rootfile_all = ROOT.TFile(options.outname.replace('.root','_LongTermSummary.root'),'RECREATE')
+            self.treeSummary = ROOT.TTree("LongTermSummary","LongTermSummary")
+            AddTimeBranchesToTree(self.treeSummary,self.sSummary)
+            AddBasicBranchesToTree(self.treeSummary,self.sSummary)
+        else :
+            self.rootfile_all = None
+            self.treeSummary = None
 
         return
 
@@ -307,6 +314,9 @@ class ImportManager :
             settings_class.WriteToFile(self.rootfile_all)
 
         for f in [self.rootfile,self.rootfile_all] :
+            if not f :
+                continue
+
             f.Write()
             f.Close()
 

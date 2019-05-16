@@ -80,6 +80,10 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
 
         uTime = MyTime.TimeFromString(linevector[3])
 
+        print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
+        if (not options.summary) and (MyTime.WeeksOld(uTime) > options.ndetailed) :
+            continue
+
         #
         # We take only the "BGReceived" BG data, to avoid double-counting.
         # linevector[5] = BGReading and linevector[6] = LinkedBGMeterID
@@ -134,12 +138,12 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
             sSummary.SensorAgeDays = -1.
 
         if sSummary.BGReading > 0 or sSummary.BWZFoodEstimate > 0 or sSummary.Rewind :
-            treeSummary.Fill()
+            if options.summary :
+                treeSummary.Fill()
 
         #
         # If it's older than 4 weeks old, do not do a detailed review.
         #
-        print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
         if MyTime.WeeksOld(uTime) > options.ndetailed :
             continue
 

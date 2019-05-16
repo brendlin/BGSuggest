@@ -111,7 +111,8 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             sSummary.BGReading = ToMgDL(line.get('value'),cfactor)
 
         if sSummary.BGReading > 0 or sSummary.BWZFoodEstimate > 0 or sSummary.Rewind :
-            treeSummary.Fill()
+            if options.summary :
+                treeSummary.Fill()
 
         #
         # If it's older than 4 weeks old, do not do a detailed review.
@@ -145,12 +146,16 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                 import sys; sys.exit()
 
         elif itype == 'wizard' :
+            sDetailed.BWZEstimate = line['recommended']['net']
             sDetailed.BWZTargetHighBG = ToMgDL(line['bgTarget']['high'],cfactor)
             sDetailed.BWZTargetLowBG  = ToMgDL(line['bgTarget']['low'] ,cfactor)
+            sDetailed.BWZCarbRatio = line['insulinCarbRatio']
             sDetailed.BWZInsulinSensitivity = ToMgDL(line['insulinSensitivity'],cfactor)
             sDetailed.BWZCarbInput = line['carbInput']
-            sDetailed.BWZCarbRatio = line['insulinCarbRatio']
             sDetailed.BWZBGInput   = ToMgDL(line.get('bgInput',0),cfactor)
+            sDetailed.BWZCorrectionEstimate = line['recommended']['correction']
+            sDetailed.BWZFoodEstimate = line['recommended']['carb']
+            sDetailed.BWZActiveInsulin = line['insulinOnBoard']
 
         # Temp basal
         elif itype == 'basal' and line['deliveryType'] == 'temp':
@@ -171,6 +176,7 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
 if __name__ == '__main__' :
     from optparse import OptionParser
     p = OptionParser()
+    p.add_option('--summary' ,action='store_true',default=False,dest='summary' ,help='Make summary root file')
     p.add_option('--ndetailed',type='int',default=4,dest='ndetailed',help='Number of weeks of detail (4)')
     p.add_option('--outname'  ,type='string',default='output_tidepool.root',dest='outname',help='Output root file name')
     p.add_option('--datadir'  ,type='string',default='data',dest='datadir',help='Data directory')

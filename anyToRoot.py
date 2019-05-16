@@ -31,6 +31,7 @@ def main(options,args) :
 if __name__ == '__main__' :
     from optparse import OptionParser
     p = OptionParser()
+    p.add_option('--summary' ,action='store_true',default=False,dest='summary' ,help='Make summary root file')
     p.add_option('--ndetailed',type='int',default=4,dest='ndetailed',help='Number of weeks of detail (4)')
     p.add_option('--outname'  ,type='string',default='output.root',dest='outname',help='Output root file name')
     p.add_option('--datadir'  ,type='string',default='data',dest='datadir',help='Data directory')
