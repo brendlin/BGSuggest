@@ -152,11 +152,29 @@ class SettingsHistograms :
 
         return hist
 
+
     def WriteToFile(self,rootfile) :
+
+        def HistsAreIdentical(h1,h2) :
+            identical = True
+            for i in range(h1.GetNbinsX()+2) :
+                if h1.GetBinContent(i) != h2.GetBinContent(i) :
+                    identical = False
+            return identical
+
+        for i in range(len(self.hist_list)) :
+            if not i :
+                continue
+            if HistsAreIdentical(self.hist_list[i],self.hist_list[i-1]) :
+                self.hist_list[i].SetTitle('skip')
+
         for i in reversed(self.hist_list) :
+            if i.GetTitle() == 'skip' :
+                continue
             rootfile.cd()
             i.Write()
         return
+
 
     def AddSettingToHistogram(self,histo_tag,timeOfDay_midnight,value) :
         # The input, timeOfDay, is in hours (float), starting from MIDNIGHT
