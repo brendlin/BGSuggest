@@ -148,7 +148,7 @@ def YearInReview(tree,nyears=7) :
     a1cs.SetMarkerColor(a1c_color)
     a1cs.SetMarkerStyle(20)
     a1cs.SetMarkerSize(1.5)
-    a1cs.SetLineWidth(3)
+    a1cs.SetLineWidth(1)
     a1cs.SetLineColor(a1c_color)
     a1cs.SetMarkerStyle(22)
 
@@ -181,8 +181,8 @@ def YearInReview(tree,nyears=7) :
         hist.SetMarkerColor(color)
         if hist.GetMarkerColor() == 0 :
             hist.SetMarkerColor(1)
-        hist.SetFillColor(color)
-        hist.SetLineWidth(3)
+        hist.SetFillColorAlpha(color,0.3)
+        hist.SetLineWidth(2)
         return
 
     Prepare(yir_17w,ROOT.kAzure-2)
@@ -190,13 +190,14 @@ def YearInReview(tree,nyears=7) :
     Prepare(yir,ROOT.kBlack)
     Prepare(yir_smooth,ROOT.kRed+1)
 
-    yir_17w.SetFillStyle(3001)
+    #yir_17w.SetFillStyle(3001)
     yir_smooth.SetFillStyle(0)
 
     plotfunc.AddHistogram(year_in_review,dummy)
     yir_17w.SetMarkerSize(0)
     yir_17w.SetTitle('17-week-average')
     plotfunc.AddHistogram(year_in_review,yir_17w,'lE3')
+    yir.SetMarkerSize(0.7)
     plotfunc.AddHistogram(year_in_review,yir,'phist')
     plotfunc.AddHistogram(year_in_review,yir_smooth,'l')
     # Add yir on top once more.
