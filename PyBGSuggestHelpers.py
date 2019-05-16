@@ -253,13 +253,15 @@ class BGFunction :
         s = self.S
         f = self.RIC
         star = ' *' if not self.BWZMatchedDelivered else ''
+        decaytime = ' %d hour decay'%(self.Ta) if (self.Ta > 4) else ''
         print 'Bolus, %s (input BG: %d mg/dl) (S=%d)'%(self.t.StringFromTime(self.iov_0),self.BWZBGInput,s)
-        print '  Total Delivered BS : %2.1f u;'%(self.I0                   )+(' %2.1f mg/dl'%(self.I0                   *s)).rjust(15)+(' %2.1f g'%(self.I0                   *f)).rjust(15)+star
-        print '  Total Suggested BS : %2.1f u;'%(self.I0Est                )+(' %2.1f mg/dl'%(self.I0Est                *s)).rjust(15)+(' %2.1f g'%(self.I0Est                *f)).rjust(15)
-        print '                food : %2.1f u;'%(self.BWZFoodEstimate      )+(' %2.1f mg/dl'%(self.BWZFoodEstimate      *s)).rjust(15)+(' %2.1f g'%(self.BWZFoodEstimate      *f)).rjust(15)
-        print '          correction : %2.1f u;'%(self.BWZCorrectionEstimate)+(' %2.1f mg/dl'%(self.BWZCorrectionEstimate*s)).rjust(15)+(' %2.1f g'%(self.BWZCorrectionEstimate*f)).rjust(15)
-        print '              active : %2.1f u;'%(self.BWZActiveInsulin     )+(' %2.1f mg/dl'%(self.BWZActiveInsulin     *s)).rjust(15)+(' %2.1f g'%(self.BWZActiveInsulin     *f)).rjust(15)
-        #print UNIXcolor.BOLD + 'Hello World !' + color.END
+        print '  Total Delivered BS : '+('%2.1f u;'%(self.I0                   )).rjust(10)+(' %2.1f mg/dl'%(self.I0                   *s)).rjust(15)+(' %2.1f g'%(self.I0                   *f)).rjust(10)+star
+        print '  Total Suggested BS : '+('%2.1f u;'%(self.I0Est                )).rjust(10)+(' %2.1f mg/dl'%(self.I0Est                *s)).rjust(15)+(' %2.1f g'%(self.I0Est                *f)).rjust(10)
+        print '                food : '+('%2.1f u;'%(self.BWZFoodEstimate      )).rjust(10)+(' %2.1f mg/dl'%(self.BWZFoodEstimate      *s)).rjust(15)+(' %2.1f g'%(self.BWZFoodEstimate      *f)).rjust(10)+decaytime
+        print '          correction : '+('%2.1f u;'%(self.BWZCorrectionEstimate)).rjust(10)+(' %2.1f mg/dl'%(self.BWZCorrectionEstimate*s)).rjust(15)+(' %2.1f g'%(self.BWZCorrectionEstimate*f)).rjust(10)
+        print '              active : '+('%2.1f u;'%(self.BWZActiveInsulin     )).rjust(10)+(' %2.1f mg/dl'%(self.BWZActiveInsulin     *s)).rjust(15)+(' %2.1f g'%(self.BWZActiveInsulin     *f)).rjust(10)
+        print
+        #print UNIXcolor.BOLD + 'Hello'' World !' + color.END
         return
 
 
@@ -566,6 +568,7 @@ def GetDayContainers(tree,week,day) :
     #start_time_rr = self.start_time                          # relevant readings - will change
 
     start_of_plot_day = t.WeekDayHourToUniversal(week,day,0)-t.OneDay # from 4am
+    start_printouts   = t.WeekDayHourToUniversal(week,day,0)-6*t.OneHour
     end_time = t.WeekDayHourToUniversal(week,day+1,0)   # events ending at 4am
 
     containers = []
@@ -689,7 +692,7 @@ def GetDayContainers(tree,week,day) :
                 #diff = 100.*(containers[-1].I0-containers[-1].I0Est)/float(containers[-1].I0Est)
                 #print '%2.1f Est, %2.1f delivered. %2.1f'%(containers[-1].I0Est,containers[-1].I0,diff)+'%'
 
-            if containers[-1].iov_0 > start_of_plot_day :
+            if containers[-1].iov_0 > start_printouts :
                 containers[-1].PrintBolus()
 
             tree.GetEntry(i)
@@ -710,8 +713,8 @@ def GetDayContainers(tree,week,day) :
             # starting on March 25,
             if tree.UniversalTime > t.TimeFromString('03/25/15 10:00:00') :
                 add_time = (tree.BWZCarbInput % 5)
-                print 'Grading based on %5.',
-                print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
+                #print 'Grading based on %5.',
+                #print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
                 containers[-1].Ta    = 2. + add_time
             containers[-1].C     = tree.BWZCarbInput
             containers[-1].RIC   = tree.BWZCarbRatio
