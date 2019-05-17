@@ -14,6 +14,9 @@ class UNIXcolor:
     UNDERLINE = '\033[4m'
     END = '\033[0m'
 
+    def bold(text) :
+        return UNIXcolor.BOLD + text + UNIXcolor.END
+
 #------------------------------------------------------------------
 class TimeClass :
     def __init__(self) :
@@ -69,8 +72,12 @@ class TimeClass :
         try :
             return long(time.mktime(time.strptime(s, "%m/%d/%y %H:%M:%S")))
         except ValueError :
-            # Tidepool format
-            return long(time.mktime(time.strptime(s, '%Y-%m-%dT%H:%M:%S')))
+            try :
+                # Tidepool format
+                return long(time.mktime(time.strptime(s, '%Y-%m-%dT%H:%M:%S')))
+            except ValueError :
+                print 'Error: could not convert to UTC: %s'%(s)
+                import sys; sys.exit()
     
     def StringFromTime(self,t,dayonly=False) :
         if dayonly :
@@ -143,16 +150,16 @@ class BGFunction :
     #
     # 
     #
-    def __init__(self) :
-        self.type = 'Unknown'
-        self.iov_0 = 0 # universal time - start of interval of validity
-        self.iov_1 = 0 # universal time - end of interval of validity
-        self.const_BG = 0 # 
-        self.S = 0 # sensitivity
-        self.Ta = 4. # active insulin time
-        self.I0Est = 0.
-        self.I0 = 0.
-        self.C = 0. # carb input
+    def __init__(self,_type,iov_0=0,iov_1=0,const_BG=0,Ta=4.,I0Est=0.,S=60.) :
+        self.type = _type  # The type ('First BG','BGReading','Insulin','Food')
+        self.iov_0 = iov_0 # universal time - start of interval of validity
+        self.iov_1 = iov_1 # universal time - end of interval of validity
+        self.const_BG = const_BG # real BG reading
+        self.S = S      # sensitivity
+        self.Ta = Ta    # active insulin time
+        self.I0Est = I0Est # Bolus wizard estimate
+        self.I0 = 0.    # Bolus volume delivered
+        self.C = 0.     # carb input (grams)
         self.RIC = 0.
         self.Registered = None
         #
@@ -161,7 +168,6 @@ class BGFunction :
         self.BWZActiveInsulin = 0.
         self.BWZBGInput = 0.
         self.BWZMatchedDelivered = True
-        self.t = TimeClass()
         return
 
     def getEffectiveSensitivity(self,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
@@ -180,16 +186,17 @@ class BGFunction :
     #
     def getIntegral(self,time,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
         #
-        #
+        # Return the integral of the BG function
+        # RIC_fac: increase the insulin-carb ratio (
         #
         import math
         if time < self.iov_0 : return 0.
         #if time > self.iov_1 : return 0.
         
-        time_hr = (time-self.iov_0)/float(self.t.OneHour)
+        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
         
         result = 1
-        result -= math.pow(0.05,math.pow(time_hr/self.Ta,2))
+        result -= math.pow(0.05,math.pow(time_hr/float(self.Ta),2))
         result *= self.getEffectiveSensitivity(S_fac=S_fac,C_fac=C_fac,RIC_fac=RIC_fac,RIC_n=RIC_n)
         #print 'returning result',result
         return result
@@ -205,13 +212,13 @@ class BGFunction :
         if time < self.iov_0 : return 0.
         if time > self.iov_1 : return 0.
 
-        time_hr = (time-self.iov_0)/float(self.t.OneHour)
+        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
         
-        result = 2*math.pow((1/self.Ta),2)
+        result = 2*math.pow((1/float(self.Ta)),2)
         result *= 3.0 # ln 20
         result *= self.getEffectiveSensitivity(S_fac=S_fac,C_fac=C_fac,RIC_fac=RIC_fac,RIC_n=RIC_n)
         result *= time_hr
-        result *= math.pow(0.05,math.pow(time_hr/self.Ta,2))
+        result *= math.pow(0.05,math.pow(time_hr/float(self.Ta),2))
         #result *= (time_hr < 6)
         result *= delta
         #print 'returning result',result
@@ -223,13 +230,13 @@ class BGFunction :
         if time < self.iov_0 : return 0.
         if time > self.iov_1 : return 0.
 
-        time_hr = (time-self.iov_0)/float(self.t.OneHour)
+        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
         
-        result = 2*math.pow((1/self.Ta),2)
+        result = 2*math.pow((1/float(self.Ta)),2)
         result *= 3.0 # ln 20
         result *= self.getEffectiveSensitivity(S_fac=S_fac,C_fac=C_fac,RIC_fac=RIC_fac,RIC_n=RIC_n)
         result *= time_hr
-        result *= math.pow(0.05,math.pow(time_hr/self.Ta,2))
+        result *= math.pow(0.05,math.pow(time_hr/float(self.Ta),2))
         #result *= (time_hr < 6)
         result *= delta
         #print 'returning result',result
@@ -239,8 +246,8 @@ class BGFunction :
 
         print '-------------'
         print 'type ',self.type 
-        print 'iov_0',self.iov_0,self.t.StringFromTime(self.iov_0)
-        print 'iov_1',self.iov_1,self.t.StringFromTime(self.iov_1)
+        print 'iov_0',self.iov_0,MyTime.StringFromTime(self.iov_0)
+        print 'iov_1',self.iov_1,MyTime.StringFromTime(self.iov_1)
         print 'BG   ',self.const_BG
         print 'S    ',self.S    
         print 'Ta   ',self.Ta   
@@ -250,18 +257,22 @@ class BGFunction :
         return
 
     def PrintBolus(self) :
-        s = self.S
-        f = self.RIC
+
         star = ' *' if not self.BWZMatchedDelivered else ''
         decaytime = ' %d hour decay'%(self.Ta) if (self.Ta > 4) else ''
-        print 'Bolus, %s (input BG: %d mg/dl) (S=%d)'%(self.t.StringFromTime(self.iov_0),self.BWZBGInput,s)
-        print '  Total Delivered BS : '+('%2.1f u;'%(self.I0                   )).rjust(10)+(' %2.1f mg/dl'%(self.I0                   *s)).rjust(15)+(' %2.1f g'%(self.I0                   *f)).rjust(10)+star
-        print '  Total Suggested BS : '+('%2.1f u;'%(self.I0Est                )).rjust(10)+(' %2.1f mg/dl'%(self.I0Est                *s)).rjust(15)+(' %2.1f g'%(self.I0Est                *f)).rjust(10)
-        print '                food : '+('%2.1f u;'%(self.BWZFoodEstimate      )).rjust(10)+(' %2.1f mg/dl'%(self.BWZFoodEstimate      *s)).rjust(15)+(' %2.1f g'%(self.BWZFoodEstimate      *f)).rjust(10)+decaytime
-        print '          correction : '+('%2.1f u;'%(self.BWZCorrectionEstimate)).rjust(10)+(' %2.1f mg/dl'%(self.BWZCorrectionEstimate*s)).rjust(15)+(' %2.1f g'%(self.BWZCorrectionEstimate*f)).rjust(10)
-        print '              active : '+('%2.1f u;'%(self.BWZActiveInsulin     )).rjust(10)+(' %2.1f mg/dl'%(self.BWZActiveInsulin     *s)).rjust(15)+(' %2.1f g'%(self.BWZActiveInsulin     *f)).rjust(10)
+        print 'Bolus, %s (input BG: %d mg/dl) (S=%d)'%(MyTime.StringFromTime(self.iov_0),self.BWZBGInput,self.S)
+
+        def PrintDetails(title,item,postscript='') :
+            print title + ('%2.1f u;'%(item)).rjust(10)+(' %2.1f mg/dl'%(item*self.S)).rjust(15)+(' %2.1f g'%(item*self.RIC)).rjust(10)+postscript
+            return
+
+        PrintDetails('  Total Delivered insulin : ',self.I0,star)
+        PrintDetails('  Total Suggested insulin : ',self.I0Est)
+        PrintDetails('             food insulin : ',self.BWZFoodEstimate,decaytime)
+        PrintDetails('       correction insulin : ',self.BWZCorrectionEstimate)
+        PrintDetails('           active insulin : ',self.BWZActiveInsulin)
         print
-        #print UNIXcolor.BOLD + 'Hello'' World !' + color.END
+
         return
 
 
@@ -372,64 +383,70 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     import TAxisFunctions as taxisfunc
     from array import array
 
-    #prediction_canvas = ThreePadCanvas('prediction_canvas','prediction_canvas',600,500)
     prediction_canvas = ThreePadCanvas('prediction_canvas','prediction_canvas',600,600,
                                        ratio_1=0.41,
                                        ratio_2=0.59,
                                        ratio_n1=0.17
                                        )
-    #prediction_canvas.SetWindowSize(500,500)
+
     week = GetLastWeek(tree)
     week = week - weeks_ago
     
+    # Add Time axis histogram to each sub-pad
     plotfunc.AddHistogram(prediction_canvas,GetHistWithTimeAxis(),'')
     plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),GetHistWithTimeAxis(),'')
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),GetHistWithTimeAxis(),'')
     plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),GetHistWithTimeAxis(),'')
 
-    band = ROOT.TH1F('band','skipme',1,-0.5,24.5)
-    band.SetBinContent(1,130)
-    band.SetBinError(1,50)
-    band.SetFillColor(ROOT.kOrange-0)
-    band.SetMarkerSize(0)
+    # Quick function to make target zones
+    def MakeErrorBandHistogram(name,min,max,color) :
+        average = (min + max) / float(2)
+        difference = (min - max)
+        band = ROOT.TH1F(name,'skipme',1,-0.5,24.5)
+        band.SetBinContent(1,average)
+        band.SetBinError(1,difference/float(2))
+        band.SetFillColor(color)
+        band.SetMarkerSize(0)
+        return band
 
-    band2 = ROOT.TH1F('band2','skipme',1,-0.5,24.5)
-    band2.SetBinContent(1,125)
-    band2.SetBinError(1,25)
-    band2.SetFillColor(ROOT.kGreen-0)
-    band2.SetMarkerSize(0)
-
-    plotfunc.AddHistogram(prediction_canvas,band,'E2')
-    plotfunc.AddHistogram(prediction_canvas,band2,'E2')
+    # Green and yellow target zones
+    bandYellow = MakeErrorBandHistogram('yellow',80,180,ROOT.kOrange)
+    bandGreen  = MakeErrorBandHistogram('yellow',100,150,ROOT.kGreen)
+    plotfunc.AddHistogram(prediction_canvas,bandYellow,'E2')
+    plotfunc.AddHistogram(prediction_canvas,bandGreen,'E2')
     plotfunc.GetTopPad(prediction_canvas).RedrawAxis()
 
+    # Sensor data (if available)
     sensor_data = GetDataFromDay(tree,'SensorGlucose',day,week)
     sensor_data.SetMarkerSize(0.7)
     if sensor_data.GetN() > 1 :
         plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensor_data,'p')
 
+    # BG data
     bg_data = GetDataFromDay(tree,'BGReading',day,week)
     bg_data.SetMarkerColor(ROOT.kRed+1)
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),bg_data,'p')
 
     containers = GetDayContainers(tree,week,day)
+
+    # Make the prediction plot (including error bars)
     prediction_plot = PredictionPlots(containers,week,day)
-    prediction_plot.SetFillStyle(3001)
+    prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),prediction_plot,'lE3')
 
-    food_plot = DDX('food',containers,week,day)
+    food_plot = GetDeltaBGversusTimePlot('food',containers,week,day)
     food_plot.SetFillStyle(3001)
     food_plot.SetFillColor(ROOT.kRed+1)
     food_plot.SetLineColor(ROOT.kRed+1)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),food_plot,'lhist')
 
-    insulin_plot = DDX('insulin',containers,week,day)
+    insulin_plot = GetDeltaBGversusTimePlot('insulin',containers,week,day)
     insulin_plot.SetFillStyle(3001)
     insulin_plot.SetFillColor(ROOT.kGreen+1)
     insulin_plot.SetLineColor(ROOT.kGreen+1)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),insulin_plot,'lhist')
 
-    both_plot = DDX('insulin_food',containers,week,day)
+    both_plot = GetDeltaBGversusTimePlot('insulin_food',containers,week,day)
     both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
@@ -552,6 +569,32 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     return prediction_canvas
 
 #------------------------------------------------------------------
+def FindTimeOfNextBG(tree,i) :
+    UT_next = MyTime.StartOfYear + MyTime.OneYear*1000. # end of 1000 years.
+    for j in range(i+1,tree.GetEntries()) :
+        tree.GetEntry(j)
+        if tree.BGReading > 0 :
+            UT_next = tree.UniversalTime
+            break
+    # Reset the tree to the entry we were at:
+    tree.GetEntry(i)
+    return UT_next
+
+#------------------------------------------------------------------
+def FindTimeAndBGOfPreviousBG(tree,i) :
+    bg_read = 0
+    UT_next = tree.UniversalTime
+    for j in range(i-1,0,-1) :
+        tree.GetEntry(j)
+        if tree.BGReading > 0 :
+            bg_read = tree.BGReading
+            break
+    tree.GetEntry(i)
+
+    return UT_next,bg_read
+
+
+#------------------------------------------------------------------
 def GetDayContainers(tree,week,day) :
     t = TimeClass()
     print 'Called LoadDayEstimate'
@@ -560,45 +603,46 @@ def GetDayContainers(tree,week,day) :
     print t.StringFromTime(t.WeekDayHourToUniversal(week,day,0))
     print '%%%%%%%%%%%%%%%%%%%'
 
-    #
-    # Look for any event between midnight of the previous day and 4am of the next day.
-    #
-    #self.start_time = t.WeekDayHourToUniversal(week,day,0)  # idk
-    #print 'self.start_time DDX', self.start_time
-    #start_time_rr = self.start_time                          # relevant readings - will change
-
+    # The start of when we consider BG readings:
     start_of_plot_day = t.WeekDayHourToUniversal(week,day,0)-t.OneDay # from 4am
-    start_printouts   = t.WeekDayHourToUniversal(week,day,0)-6*t.OneHour
-    end_time = t.WeekDayHourToUniversal(week,day+1,0)   # events ending at 4am
+
+    # The start-time of relevant events is 6 hours before the first BG measurement (found below).
+    # We consider earlier events because they can bleed into the next day.
+    start_time_relevantEvents = 0
+
+    # When to start printing out the bolus info to command-line
+    start_printouts = t.WeekDayHourToUniversal(week,day,0)-6*t.OneHour
+
+    # The end-time - 4am the next day.
+    end_time = t.WeekDayHourToUniversal(week,day+1,0)
 
     containers = []
 
     #
-    # BG Readings - get carry-over.
+    # BG Readings - get the LAST BG reading before the start of the plot-day (which we call "First BG")
+    # This requires also finding the first BG reading, in order to get iov_1 for the first BG
     #
     for i in range(tree.GetEntries()) :
         tree.GetEntry(i)
-        if tree.UniversalTime < start_of_plot_day : continue
-        if tree.UniversalTime > end_time : continue
+
+        if tree.UniversalTime < start_of_plot_day :
+            continue
+
+        if tree.UniversalTime > end_time :
+            continue
+
         if tree.BGReading > 0 :
             #
             # the iov_1 is the iov_0 of this first measurement
             #
-            bg_read = 0
-            UT_next = tree.UniversalTime
-            for j in range(i-1,0,-1) :
-                tree.GetEntry(j)
-                if tree.BGReading > 0 :
-                    bg_read = tree.BGReading
-                    break
+            UT_next,bg_read = FindTimeAndBGOfPreviousBG(tree,i)
 
-            containers.append(BGFunction())
-            containers[-1].iov_0 = tree.UniversalTime
-            containers[-1].type = 'First BG'
-            start_time_rr = tree.UniversalTime - 6.*t.OneHour # start collecting 6h before first meas.
-            containers[-1].const_BG = bg_read
-            containers[-1].iov_1 = UT_next
+            # Make the "First BG" container entry:
+            c = BGFunction('First BG', iov_0=tree.UniversalTime, iov_1=UT_next, const_BG=bg_read)
+            containers.append(c)
 
+            # Anything 6h before first measurement is a relevant event
+            start_time_relevantEvents = tree.UniversalTime - 6.*t.OneHour
 
             break
         #
@@ -609,115 +653,84 @@ def GetDayContainers(tree,week,day) :
     #
     for i in range(tree.GetEntries()) :
         tree.GetEntry(i)
-        #print 'time',t.StringFromTime(tree.UniversalTime),'BG',tree.BGReading
-        if tree.UniversalTime < start_time_rr : continue
-        #
-        # Should not need this
-        #
-        #if tree.UniversalTime < self.start_of_plot_day and tree.BGReading > 0 : continue # skip earlier meas.
-        if tree.UniversalTime > end_time : continue
 
+        if tree.UniversalTime < start_time_relevantEvents :
+            continue
+
+        if tree.UniversalTime > end_time :
+            continue
+
+        # Find BG readings
         if tree.BGReading > 0 and tree.UniversalTime > start_of_plot_day :
-            containers.append(BGFunction())
-            containers[-1].type = 'BGReading'
-            containers[-1].const_BG = tree.BGReading
-            containers[-1].iov_0 = tree.UniversalTime
 
-            #
-            # find next meas
-            #
-            UT_next = t.StartOfYear + t.OneYear*1000. # end of 1000 years.
-            for j in range(i+1,tree.GetEntries()) :
-                tree.GetEntry(j)
-                if tree.BGReading > 0 :
-                    #print 'Previous BG was: %d Next BG Reading is: %d'%(containers[-1].const_BG,tree.BGReading)
-                    UT_next = tree.UniversalTime
-                    break
-            containers[-1].iov_1 = UT_next
-            tree.GetEntry(i)
+            # Make a BGReading container
+            c = BGFunction('BGReading', iov_0=tree.UniversalTime, const_BG=tree.BGReading)
+            c.iov_1 = FindTimeOfNextBG(tree,i)
 
-        #
-        # Insulin mothafucka
-        #
+            # Add the BG reading to the list
+            containers.append(c)
+
+
+        # Insulin
         if tree.BolusVolumeDelivered > 0 :
 
-            containers.append(BGFunction())
-            containers[-1].type  = 'Insulin'
-            containers[-1].iov_0 = tree.UniversalTime
-            containers[-1].iov_1 = tree.UniversalTime+6.*t.OneHour
-            containers[-1].Ta    = 4.
-            containers[-1].I0    = tree.BolusVolumeDelivered
-            containers[-1].I0Est = 0.
-            containers[-1].S     = 60. # need to fix!
+            c = BGFunction('Insulin',Ta=4,I0Est=0,S=60)
+            c.iov_0 = tree.UniversalTime
+            c.iov_1 = tree.UniversalTime+6.*t.OneHour
+            c.I0    = tree.BolusVolumeDelivered
+            c.S     = 60. # need to fix!
 
-            #
             # Matching BWZEstimate from delivered insulin
-            #
             IsBWZEstimate = False
-            for j in range(i-1,i-10,-1) :
+
+            # Try to find (within 5 seconds) the bolus wizard estimate
+            for j in range(i-1,i-10,-1) + range(i+1,i+10) :
                 tree.GetEntry(j)
-                if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - containers[-1].iov_0)<5) :
-                    containers[-1].I0Est = tree.BWZEstimate
-                    containers[-1].S     = tree.BWZInsulinSensitivity
-                    containers[-1].BWZCorrectionEstimate = tree.BWZCorrectionEstimate
-                    containers[-1].BWZFoodEstimate       = tree.BWZFoodEstimate      
-                    containers[-1].BWZActiveInsulin      = tree.BWZActiveInsulin     
-                    containers[-1].BWZBGInput            = tree.BWZBGInput
-                    containers[-1].RIC                   = tree.BWZCarbRatio
+                if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - c.iov_0) < 5*t.OneSecond) :
+                    c.I0Est = tree.BWZEstimate
+                    c.S     = tree.BWZInsulinSensitivity
+                    c.BWZCorrectionEstimate = tree.BWZCorrectionEstimate
+                    c.BWZFoodEstimate       = tree.BWZFoodEstimate
+                    c.BWZActiveInsulin      = tree.BWZActiveInsulin
+                    c.BWZBGInput            = tree.BWZBGInput
+                    c.RIC                   = tree.BWZCarbRatio
                     IsBWZEstimate = True
                     break
-                #if j == i-9 :
-                #    print 'Warning! Could not find BWZ estimate!',t.StringFromTime(containers[-1].iov_0)
-            for j in range(i+1,i+10) :
-                if containers[-1].I0Est > 0 : 
-                    break
-                tree.GetEntry(j)
-                if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - containers[-1].iov_0)<5) :
-                    containers[-1].I0Est = tree.BWZEstimate
-                    containers[-1].S     = tree.BWZInsulinSensitivity
-                    containers[-1].BWZCorrectionEstimate = tree.BWZCorrectionEstimate
-                    containers[-1].BWZFoodEstimate       = tree.BWZFoodEstimate      
-                    containers[-1].BWZActiveInsulin      = tree.BWZActiveInsulin     
-                    containers[-1].BWZBGInput            = tree.BWZBGInput
-                    containers[-1].RIC                   = tree.BWZCarbRatio
-                    IsBWZEstimate = True
-                    break
-                if j == i+9 :
-                    print 'Warning! Could not find BWZ estimate!',t.StringFromTime(containers[-1].iov_0)
 
-            if IsBWZEstimate and (containers[-1].I0 != containers[-1].I0Est) :
-                containers[-1].BWZMatchedDelivered = False
-                #print 'Estimate != delivered!',
-                #print t.StringFromTime(containers[-1].iov_0),
-                #diff = 100.*(containers[-1].I0-containers[-1].I0Est)/float(containers[-1].I0Est)
-                #print '%2.1f Est, %2.1f delivered. %2.1f'%(containers[-1].I0Est,containers[-1].I0,diff)+'%'
-
-            if containers[-1].iov_0 > start_printouts :
-                containers[-1].PrintBolus()
-
+            # Reset tree entry
             tree.GetEntry(i)
+
+            if not IsBWZEstimate :
+                print 'Warning! Could not find BWZ estimate!',t.StringFromTime(c.iov_0)
+
+            if IsBWZEstimate and (c.I0 != c.I0Est) :
+                c.BWZMatchedDelivered = False
+
+            if c.iov_0 > start_printouts :
+                c.PrintBolus()
+
+            containers.append(c)
+
         #
-        # Food bitch!
+        # Food
         #
-        if j != i : 
-            j = i
-        tree.GetEntry(i)
         if tree.BWZCarbInput > 0 :
 
-            containers.append(BGFunction())
-            containers[-1].type  = 'Food'
-            containers[-1].iov_0 = tree.UniversalTime
-            containers[-1].iov_1 = tree.UniversalTime+6.*t.OneHour
-            containers[-1].S     = tree.BWZInsulinSensitivity
-            containers[-1].Ta    = 2.
-            # starting on March 25,
+            c = BGFunction('Food',Ta=2)
+            c.iov_0 = tree.UniversalTime
+            c.iov_1 = tree.UniversalTime+6.*t.OneHour
+            c.S     = tree.BWZInsulinSensitivity
+            c.C   = tree.BWZCarbInput
+            c.RIC = tree.BWZCarbRatio
+
+            # starting on March 25, 2015:
             if tree.UniversalTime > t.TimeFromString('03/25/15 10:00:00') :
                 add_time = (tree.BWZCarbInput % 5)
                 #print 'Grading based on %5.',
                 #print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
-                containers[-1].Ta    = 2. + add_time
-            containers[-1].C     = tree.BWZCarbInput
-            containers[-1].RIC   = tree.BWZCarbRatio
+                c.Ta = 2. + add_time
+
+            containers.append(c)
 
     #
     # Now make the prediction plots (moved elsewhere)
@@ -754,7 +767,11 @@ def ComparePredictionToReality(prediction,reality,reverse=False) :
     return h
 
 #------------------------------------------------------------------
-def DDX(the_type,containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
+def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
+    #
+    # Pl
+    #
+
     import math
     import ROOT
     t = TimeClass()
@@ -778,7 +795,8 @@ def DDX(the_type,containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
     return h
 
 #------------------------------------------------------------------
-def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
+def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) :
+    # NEED TO FIX RIC STUFF!
     #
     # The standard prediction plots for week
     # Returns one plot, for one day, with the predicted levels.
