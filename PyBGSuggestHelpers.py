@@ -201,7 +201,7 @@ class BGFunction :
         #print 'returning result',result
         return result
 
-    def stuffRemaining(self,time,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
+    def bgImpactRemaining(self,time,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
         
         return (self.getIntegral(time,S_fac,C_fac,RIC_fac,RIC_n) -
                 self.getIntegral(time*1000,S_fac,C_fac,RIC_fac,RIC_n)) # "infinity"
@@ -796,111 +796,91 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_
 def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) :
     # NEED TO FIX RIC STUFF!
     #
-    # The standard prediction plots for week
-    # Returns one plot, for one day, with the predicted levels.
+    # The standard prediction plot.
+    # Returns one plot, for one day, with the predicted BG curve.
     # Week and day figure into the start_of_plot_day
     # but probably they can be removed with some small effort
     #
     import math
 
+    # Start of the daily plot, from 4am
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
-    hours_per_step = .2
-    x_time = []
-    y_bg = []
-    y_bg_err_up = []
-    y_bg_err_dn = []
 
-#     for c in containers :
-#         c.Print()
+    # Granularity of the prediction
+    hours_per_step = 0.2
+
+    prediction_graph = ROOT.TGraph()
+    prediction_graph.SetTitle('prediction')
+
+    bg_estimates = []
+
+    for c in containers :
+        c.Print()
+
+    # When we hit a BG reading, then we want to consider (once) resetting the prediction.
+    considered_for_bgReset = []
 
     for i in range(int(24./hours_per_step)) :
+
         the_time = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour) # universal
+        time_on_plot = hours_per_step*i
 
-        # HACK if it's not lining up (daylight savings time for instance)
-        x_time.append(0+hours_per_step*i)
-        if len(y_bg) : 
-            y_bg.append(y_bg[-1])
-            y_bg_err_up.append(y_bg_err_up[-1])
-            y_bg_err_dn.append(y_bg_err_dn[-1])
-        else : 
-            y_bg.append(0)
-            y_bg_err_up.append(0)
-            y_bg_err_dn.append(0)
+        # We start the estimate with the estimate from the previous point.
+        # We will calculate the differential effect of each object.
+        # The effects are assumed to be additive.
+        # If this is the first point, then we will
+        bg_estimates.append( 0 if (not i) else bg_estimates[-1] )
 
-        #
-        # We'll keep track of whether large boluses are in progress
-        #
-        max_action = 0
+        # We'll keep track of whether large boluses are in progress in this time-step
+        max_bgEffectRemaining = 0
 
         #
-        # Find the last measurement time
+        # Quick function to find the first BG
         #
-        last_meas_time = the_time
-        for c in containers :
-            if c.type == 'First BG' :
-                last_meas_time = c.iov_0
-                break
+        def findFirstBG(conts) :
+            for c in conts :
+                if c.type == 'First BG' :
+                    return c
+            return None
 
         for c in containers :
 
-            if the_time < c.iov_0 : continue
-
-            #
-            # For the first entry of the day:
-            #
-            if (i==0) and (c.I0 or c.C) :
-                nom_integral = c.getIntegral(the_time            ) - c.getIntegral(last_meas_time            )
-                # up_integral  = c.getIntegral(the_time,RIC_fac=self.RIC_fac_up) - c.getIntegral(last_meas_time,RIC_fac=self.RIC_fac_up)
-                # dn_integral  = c.getIntegral(the_time,RIC_fac=self.RIC_fac_dn) - c.getIntegral(last_meas_time,RIC_fac=self.RIC_fac_dn)
-                up_integral  = c.getIntegral(the_time,RIC_n=RIC_n_up) - c.getIntegral(last_meas_time,RIC_n=RIC_n_up)
-                dn_integral  = c.getIntegral(the_time,RIC_n=RIC_n_dn) - c.getIntegral(last_meas_time,RIC_n=RIC_n_dn)
-                y_bg[-1] += nom_integral
-                y_bg_err_up[-1] += up_integral - nom_integral
-                y_bg_err_dn[-1] += nom_integral - dn_integral
+            if the_time < c.iov_0 :
                 continue
 
-            if the_time > c.iov_1 : continue
+            # Special treatment for the first bin of the day:
+            if (i==0) and (c.I0 or c.C) :
 
-            #
-            # For the nominal entry
-            #
+                # Find the first BG
+                first_bg_time = findFirstBG(containers).iov_0
+                integral = c.getIntegral(the_time) - c.getIntegral(first_bg_time)
+                bg_estimates[-1] += integral
+                continue
+
+            # If the object time has expired, skip it.
+            if the_time > c.iov_1 :
+                continue
+
+            # For the typical bin in the day-plot:
             if c.I0 or c.C :
-                nom_ddx = c.getDDXtimesInterval(the_time,hours_per_step)
-                up_ddx = c.getDDXtimesInterval(the_time,hours_per_step,RIC_n=RIC_n_up)
-                dn_ddx = c.getDDXtimesInterval(the_time,hours_per_step,RIC_n=RIC_n_dn)
-                y_bg[-1] += nom_ddx
-                y_bg_err_up[-1] += up_ddx - nom_ddx
-                y_bg_err_dn[-1] += nom_ddx - dn_ddx
-                max_action = max(max_action,math.fabs(c.stuffRemaining(the_time)))
-            #
-            # If there was a new reading, we reset the prediction... if...
-            #
-            if c.const_BG and not c.Registered : 
-                c.Registered = True
-                #
-                # If something is in progress that would cause 30 points drop/increase,
-                # skip the recalibration.
-                #
-                if max_action < 30 :
-                    y_bg[-1] = c.const_BG
-                    y_bg_err_up[-1] = 0.
-                    y_bg_err_dn[-1] = 0.
+                impactInTimeInterval = c.getDDXtimesInterval(the_time,hours_per_step)
+                bg_estimates[-1] += impactInTimeInterval
+                max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.bgImpactRemaining(the_time)))
 
-    x_bg_err_up = []
-    x_bg_err_dn = []
-    for i in range(len(x_time)) :
-        x_bg_err_up.append(0)
-        x_bg_err_dn.append(0)
+            # If there was a new reading, we reset the prediction (with the caveats below)
+            if c.const_BG and not (c.iov_0 in considered_for_bgReset) :
 
-    x_time_d = array('d',x_time)
-    y_bg_d   = array('d',y_bg  )
-    y_bg_d_err_up = array('d',y_bg_err_up)
-    y_bg_d_err_dn = array('d',y_bg_err_dn)
+                # We should only consider resetting one time!
+                considered_for_bgReset.append(c.iov_0)
 
-    x_bg_d_err_up = array('d',x_bg_err_up)
-    x_bg_d_err_dn = array('d',x_bg_err_dn)
+                # If nothing is in progress that would cause 30 points drop/increase,
+                # reset the prediction.
+                if max_bgEffectRemaining < 30 :
+                    bg_estimates[-1] = c.const_BG
 
-    myddx = ROOT.TGraphAsymmErrors(len(x_time)-1,x_time_d,y_bg_d,
-                                   x_bg_d_err_up,x_bg_d_err_dn,y_bg_d_err_up,y_bg_d_err_dn)
+        # end loop over containers
 
-    return myddx
+        # add a new point to the graph
+        prediction_graph.SetPoint(prediction_graph.GetN(),time_on_plot,bg_estimates[-1])
+
+    return prediction_graph
