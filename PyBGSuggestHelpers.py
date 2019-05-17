@@ -493,9 +493,8 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Draw the date.
     #
-    t = TimeClass()
     plotfunc.DrawText(prediction_canvas.GetPrimitive('pad_top'),
-                      t.StringFromTime(t.DayWeekToUniversal(week,day),dayonly=True),
+                      MyTime.StringFromTime(MyTime.DayWeekToUniversal(week,day),dayonly=True),
                       0.79,0.73,0.91,0.84,
                       totalentries=1
                       )
@@ -510,7 +509,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                 continue
             #print i.GetName()
             #print 'day of week is',t.GetDayOfWeek(time_in_question)
-            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('Sensitivity ','')) :
+            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('Sensitivity ','')) :
                 #print 'Stopping at',i.GetName()
                 hist_sensi = i.ReadObj()
                 hist_sensi.SetMarkerColor(ROOT.kGreen+1)
@@ -529,8 +528,8 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
             if 'RIC' not in i.GetName() :
                 continue
             #print i.GetName()
-            #print 'day of week is',t.GetDayOfWeek(time_in_question)
-            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('RIC ','')) :
+            #print 'day of week is',MyTime.GetDayOfWeek(time_in_question)
+            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('RIC ','')) :
                 #print 'Stopping at',i.GetName()
                 hist_foodsensi = i.ReadObj()
                 hist_foodsensi.SetMarkerSize(0.2)
@@ -549,8 +548,8 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
             if 'Basal' not in i.GetName() :
                 continue
             #print i.GetName()
-            #print 'day of week is',t.GetDayOfWeek(time_in_question)
-            if t.DayWeekToUniversal(week,day) > t.TimeFromString(i.GetName().replace('Basal ','')) :
+            #print 'day of week is',MyTime.GetDayOfWeek(time_in_question)
+            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('Basal ','')) :
                 #print 'Stopping at',i.GetName()
                 hist_basalsensi = i.ReadObj()
                 hist_basalsensi.SetMarkerSize(0.2)
@@ -596,25 +595,25 @@ def FindTimeAndBGOfPreviousBG(tree,i) :
 
 #------------------------------------------------------------------
 def GetDayContainers(tree,week,day) :
-    t = TimeClass()
+
     print 'Called LoadDayEstimate'
     print '%%%%%%%%%%%%%%%%%%%'
     print ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][day]
-    print t.StringFromTime(t.WeekDayHourToUniversal(week,day,0))
+    print MyTime.StringFromTime(MyTime.WeekDayHourToUniversal(week,day,0))
     print '%%%%%%%%%%%%%%%%%%%'
 
     # The start of when we consider BG readings:
-    start_of_plot_day = t.WeekDayHourToUniversal(week,day,0)-t.OneDay # from 4am
+    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0)-MyTime.OneDay # from 4am
 
     # The start-time of relevant events is 6 hours before the first BG measurement (found below).
     # We consider earlier events because they can bleed into the next day.
     start_time_relevantEvents = 0
 
     # When to start printing out the bolus info to command-line
-    start_printouts = t.WeekDayHourToUniversal(week,day,0)-6*t.OneHour
+    start_printouts = MyTime.WeekDayHourToUniversal(week,day,0) - 6*MyTime.OneHour
 
     # The end-time - 4am the next day.
-    end_time = t.WeekDayHourToUniversal(week,day+1,0)
+    end_time = MyTime.WeekDayHourToUniversal(week,day+1,0)
 
     containers = []
 
@@ -642,7 +641,7 @@ def GetDayContainers(tree,week,day) :
             containers.append(c)
 
             # Anything 6h before first measurement is a relevant event
-            start_time_relevantEvents = tree.UniversalTime - 6.*t.OneHour
+            start_time_relevantEvents = tree.UniversalTime - 6.*MyTime.OneHour
 
             break
         #
@@ -676,7 +675,7 @@ def GetDayContainers(tree,week,day) :
 
             c = BGFunction('Insulin',Ta=4,I0Est=0,S=60)
             c.iov_0 = tree.UniversalTime
-            c.iov_1 = tree.UniversalTime+6.*t.OneHour
+            c.iov_1 = tree.UniversalTime+6.*MyTime.OneHour
             c.I0    = tree.BolusVolumeDelivered
             c.S     = 60. # need to fix!
 
@@ -686,7 +685,7 @@ def GetDayContainers(tree,week,day) :
             # Try to find (within 5 seconds) the bolus wizard estimate
             for j in range(i-1,i-10,-1) + range(i+1,i+10) :
                 tree.GetEntry(j)
-                if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - c.iov_0) < 5*t.OneSecond) :
+                if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - c.iov_0) < 5*MyTime.OneSecond) :
                     c.I0Est = tree.BWZEstimate
                     c.S     = tree.BWZInsulinSensitivity
                     c.BWZCorrectionEstimate = tree.BWZCorrectionEstimate
@@ -701,7 +700,7 @@ def GetDayContainers(tree,week,day) :
             tree.GetEntry(i)
 
             if not IsBWZEstimate :
-                print 'Warning! Could not find BWZ estimate!',t.StringFromTime(c.iov_0)
+                print 'Warning! Could not find BWZ estimate!',MyTime.StringFromTime(c.iov_0)
 
             if IsBWZEstimate and (c.I0 != c.I0Est) :
                 c.BWZMatchedDelivered = False
@@ -718,13 +717,13 @@ def GetDayContainers(tree,week,day) :
 
             c = BGFunction('Food',Ta=2)
             c.iov_0 = tree.UniversalTime
-            c.iov_1 = tree.UniversalTime+6.*t.OneHour
+            c.iov_1 = tree.UniversalTime+6.*MyTime.OneHour
             c.S     = tree.BWZInsulinSensitivity
             c.C   = tree.BWZCarbInput
             c.RIC = tree.BWZCarbRatio
 
             # starting on March 25, 2015:
-            if tree.UniversalTime > t.TimeFromString('03/25/15 10:00:00') :
+            if tree.UniversalTime > MyTime.TimeFromString('03/25/15 10:00:00') :
                 add_time = (tree.BWZCarbInput % 5)
                 #print 'Grading based on %5.',
                 #print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
@@ -774,9 +773,8 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_
 
     import math
     import ROOT
-    t = TimeClass()
 
-    start_of_plot_day = t.WeekDayHourToUniversal(week,day,0) # from 4am
+    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
     hours_per_step = 0.1
     x_time = []
     y_bg = []
@@ -785,7 +783,7 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_
     h.SetBinContent(0,0)
     h.SetBinContent(h.GetNbinsX()+1,0)
     for i in range(int(24./hours_per_step)+1) :
-        the_time = start_of_plot_day + i*hours_per_step*float(t.OneHour) # universal
+        the_time = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour) # universal
         for c in containers :
             if the_time < c.iov_0 : continue
             if c.C and 'food' in the_type :
@@ -804,9 +802,8 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) 
     # but probably they can be removed with some small effort
     #
     import math
-    t = TimeClass()
 
-    start_of_plot_day = t.WeekDayHourToUniversal(week,day,0) # from 4am
+    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
     hours_per_step = .2
     x_time = []
     y_bg = []
@@ -817,7 +814,7 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) 
 #         c.Print()
 
     for i in range(int(24./hours_per_step)) :
-        the_time = start_of_plot_day + i*hours_per_step*float(t.OneHour) # universal
+        the_time = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour) # universal
 
         # HACK if it's not lining up (daylight savings time for instance)
         x_time.append(0+hours_per_step*i)
