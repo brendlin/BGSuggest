@@ -155,9 +155,9 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             sDetailed.BWZBGInput   = ToMgDL(line.get('bgInput',0),cfactor)
             sDetailed.BWZCorrectionEstimate = line['recommended']['correction']
             sDetailed.BWZFoodEstimate = line['recommended']['carb']
-            sDetailed.BWZActiveInsulin = line['insulinOnBoard']
+            if 'insulinOnBoard' in line.keys() :
+                sDetailed.BWZActiveInsulin = line['insulinOnBoard']
 
-        # Temp basal
         elif itype == 'basal' and line['deliveryType'] == 'temp':
             sDetailed.TempBasalType = 'Percent' if line.get('percent',None) else 'Unknown'
             if sDetailed.TempBasalType == 'Unknown' :

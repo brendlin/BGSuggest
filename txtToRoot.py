@@ -30,8 +30,12 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
                    basal_histograms,sensi_histograms,ric_histograms,
                    options) :
 
+    counter = 0
+
     inputfile = open(inputfilename,'r')
     for line in inputfile:
+
+        counter += 1
 
         # Get rid of commas between quoted items
         linevector = line.split('"')
@@ -80,7 +84,10 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
 
         uTime = MyTime.TimeFromString(linevector[3])
 
-        print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
+
+        if not (counter % 100) :
+            print '%s %d \r'%(MyTime.StringFromTime(uTime),MyTime.WeeksOld(uTime)),
+
         if (not options.summary) and (MyTime.WeeksOld(uTime) > options.ndetailed) :
             continue
 
@@ -170,6 +177,7 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
 
         treeDetailed.Fill()
 
+    inputfile.close()
     return
 
 if __name__ == '__main__' :

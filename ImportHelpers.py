@@ -1,13 +1,14 @@
 import ROOT
 import os
 from PyBGSuggestHelpers import MyTime
+from Settings import SettingsHistograms
+import time
 
 # BRanch CLass (for info on the tree branches)
 class BRCL :
     btype = ''
 
-    def __init__(self,_name,_btype,_csvIndex=-1) :
-        self.name = _name
+    def __init__(self,_btype,_csvIndex=-1) :
         self.btype = _btype
         self.csvIndex = _csvIndex
         self.isNumber = (self.btype != 'C')
@@ -19,8 +20,6 @@ class BRCL :
     def formatCSVValue(self,strval) :
         if strval == '' and self.isNumber :
             return -1
-        if self.name in ['ProgrammedBolusDuration','TempBasalDuration'] :
-            return float(strval) / float(MyTime.MillisecondsInAnHour)
         if self.btype == 'I' :
             return int(strval)
         if self.btype == 'O' :
@@ -29,7 +28,14 @@ class BRCL :
             return long(strval)
         if self.btype == 'F' :
             return float(strval)
+        if self.btype == 'Ftime' : # float, but need to divide by milliseconds
+            return float(strval) / float(MyTime.MillisecondsInAnHour)
         return strval
+
+    def AddBranchToTree(self,tree,addresses,name) :
+        tmp_type = 'F' if (self.btype == 'Ftime') else self.btype
+        tree.Branch(name,ROOT.AddressOf(addresses,name),'%s/%s'%(name,tmp_type))
+        return
 
     def DefaultValue(self) :
         return {
@@ -37,6 +43,7 @@ class BRCL :
             'O':  0,
             'L':  0,
             'F': -1,
+            'Ftime':-1
             }.get(self.btype)
 
     def getFormattedValueFromVector(self,vector) :
@@ -46,45 +53,45 @@ class BRCL :
 def GetTreeBranchClassesDict() :
     import collections
     branches = collections.OrderedDict()
-    branches['Index'                  ] = BRCL('Index'                  ,'I', 0) # number is the index
-    branches['Date'                   ] = BRCL('Date'                   ,'C', 1)
-    branches['Time'                   ] = BRCL('Time'                   ,'C', 2)
-    branches['Timestamp'              ] = BRCL('Timestamp'              ,'C', 3)
-    branches['NewDeviceTime'          ] = BRCL('NewDeviceTime'          ,'C', 4)
-    branches['BGReading'              ] = BRCL('BGReading'              ,'I', 5) # ['value']
-    branches['LinkedBGMeterID'        ] = BRCL('LinkedBGMeterID'        ,'L', 6)
-    branches['TempBasalAmount'        ] = BRCL('TempBasalAmount'        ,'F', 7) # ['percent'] or ... ????
-    branches['TempBasalType'          ] = BRCL('TempBasalType'          ,'C', 8) # ['deliveryType']
-    branches['TempBasalDuration'      ] = BRCL('TempBasalDuration'      ,'F', 9) # ['duration']
-    branches['BolusType'              ] = BRCL('BolusType'              ,'C',10)
-    branches['BolusVolumeSelected'    ] = BRCL('BolusVolumeSelected'    ,'F',11)
-    branches['BolusVolumeDelivered'   ] = BRCL('BolusVolumeDelivered'   ,'F',12) # line[line['subType']]  ?????
-    branches['ProgrammedBolusDuration'] = BRCL('ProgrammedBolusDuration','F',13)
-    branches['PrimeType'              ] = BRCL('PrimeType'              ,'C',14)
-    branches['PrimeVolumeDelivered'   ] = BRCL('PrimeVolumeDelivered'   ,'F',15)
-    branches['Suspend'                ] = BRCL('Suspend'                ,'C',16)
-    branches['Rewind'                 ] = BRCL('Rewind'                 ,'O',17) # 'deviceEvent' and 'reservoirChange'
-    branches['BWZEstimate'            ] = BRCL('BWZEstimate'            ,'F',18) # net, probably ...
-    branches['BWZTargetHighBG'        ] = BRCL('BWZTargetHighBG'        ,'I',19) # ['bgTarget']['high']
-    branches['BWZTargetLowBG'         ] = BRCL('BWZTargetLowBG'         ,'I',20) # ['bgTarget']['low']
-    branches['BWZCarbRatio'           ] = BRCL('BWZCarbRatio'           ,'F',21) # ['insulinCarbRatio']
-    branches['BWZInsulinSensitivity'  ] = BRCL('BWZInsulinSensitivity'  ,'I',22) # ['insulinSensitivity']
-    branches['BWZCarbInput'           ] = BRCL('BWZCarbInput'           ,'I',23) # ['carbInput']
-    branches['BWZBGInput'             ] = BRCL('BWZBGInput'             ,'I',24) # ['bgInput']
-    branches['BWZCorrectionEstimate'  ] = BRCL('BWZCorrectionEstimate'  ,'F',25) # ['recommended']['correction']
-    branches['BWZFoodEstimate'        ] = BRCL('BWZFoodEstimate'        ,'F',26) # ['recommended']['carb']
-    branches['BWZActiveInsulin'       ] = BRCL('BWZActiveInsulin'       ,'F',27) # ??? 'net' ???
-    branches['Alarm'                  ] = BRCL('Alarm'                  ,'C',28)
-    branches['SensorCalibrationBG'    ] = BRCL('SensorCalibrationBG'    ,'I',29)
-    branches['SensorGlucose'          ] = BRCL('SensorGlucose'          ,'I',30)
-    branches['ISIGValue'              ] = BRCL('ISIGValue'              ,'F',31)
-    branches['DailyInsulinTotal'      ] = BRCL('DailyInsulinTotal'      ,'F',32)
-    branches['RawType'                ] = BRCL('RawType'                ,'C',33)
-    branches['RawValues'              ] = BRCL('RawValues'              ,'C',34)
-    branches['RawID'                  ] = BRCL('RawID'                  ,'L',35)
-    branches['RawUploadID'            ] = BRCL('RawUploadID'            ,'L',36)
-    branches['RawSeqNum'              ] = BRCL('RawSeqNum'              ,'L',37)
-    branches['RawDeviceType'          ] = BRCL('RawDeviceType'          ,'C',38)
+    branches['Index'                  ] = BRCL('I', 0) # number is the index
+    branches['Date'                   ] = BRCL('C', 1)
+    branches['Time'                   ] = BRCL('C', 2)
+    branches['Timestamp'              ] = BRCL('C', 3)
+    branches['NewDeviceTime'          ] = BRCL('C', 4)
+    branches['BGReading'              ] = BRCL('I', 5) # ['value']
+    branches['LinkedBGMeterID'        ] = BRCL('L', 6)
+    branches['TempBasalAmount'        ] = BRCL('F', 7) # ['percent'] or ... ????
+    branches['TempBasalType'          ] = BRCL('C', 8) # ['deliveryType']
+    branches['TempBasalDuration'      ] = BRCL('Ftime', 9) # ['duration']
+    branches['BolusType'              ] = BRCL('C',10)
+    branches['BolusVolumeSelected'    ] = BRCL('F',11)
+    branches['BolusVolumeDelivered'   ] = BRCL('F',12) # line[line['subType']]  ?????
+    branches['ProgrammedBolusDuration'] = BRCL('Ftime',13)
+    branches['PrimeType'              ] = BRCL('C',14)
+    branches['PrimeVolumeDelivered'   ] = BRCL('F',15)
+    branches['Suspend'                ] = BRCL('C',16)
+    branches['Rewind'                 ] = BRCL('O',17) # 'deviceEvent' and 'reservoirChange'
+    branches['BWZEstimate'            ] = BRCL('F',18) # net, probably ...
+    branches['BWZTargetHighBG'        ] = BRCL('I',19) # ['bgTarget']['high']
+    branches['BWZTargetLowBG'         ] = BRCL('I',20) # ['bgTarget']['low']
+    branches['BWZCarbRatio'           ] = BRCL('F',21) # ['insulinCarbRatio']
+    branches['BWZInsulinSensitivity'  ] = BRCL('I',22) # ['insulinSensitivity']
+    branches['BWZCarbInput'           ] = BRCL('I',23) # ['carbInput']
+    branches['BWZBGInput'             ] = BRCL('I',24) # ['bgInput']
+    branches['BWZCorrectionEstimate'  ] = BRCL('F',25) # ['recommended']['correction']
+    branches['BWZFoodEstimate'        ] = BRCL('F',26) # ['recommended']['carb']
+    branches['BWZActiveInsulin'       ] = BRCL('F',27) # ??? 'net' ???
+    branches['Alarm'                  ] = BRCL('C',28)
+    branches['SensorCalibrationBG'    ] = BRCL('I',29)
+    branches['SensorGlucose'          ] = BRCL('I',30)
+    branches['ISIGValue'              ] = BRCL('F',31)
+    branches['DailyInsulinTotal'      ] = BRCL('F',32)
+    branches['RawType'                ] = BRCL('C',33)
+    branches['RawValues'              ] = BRCL('C',34)
+    branches['RawID'                  ] = BRCL('L',35)
+    branches['RawUploadID'            ] = BRCL('L',36)
+    branches['RawSeqNum'              ] = BRCL('L',37)
+    branches['RawDeviceType'          ] = BRCL('C',38)
     return branches
 
 # Do not worry - if you import this file multiple times, you will not create multiple instances.
@@ -120,115 +127,6 @@ class CrossDatumDataStorage :
 
 dataStorageInstance = CrossDatumDataStorage()
 
-class SettingsHistograms :
-
-    def __init__(self,_type_of_hist) :
-        self.hist_list = []
-        self.type_of_hist = _type_of_hist
-        return
-
-    def latestHistogram(self) :
-        if not self.hist_list :
-            print 'warning! No insulin-carb ratio on record!'
-        else :
-            return self.hist_list[-1]
-
-        return None
-
-    def getOrMakeHistogram(self,histo_tag) :
-
-        # Get the latest histogram, if it exists
-        for hist in self.hist_list :
-            if histo_tag in hist.GetName() :
-                return hist
-
-        # If it does not exist, make a new one:
-        # They are all half-hour increments, starting from 4am!
-        hist = ROOT.TH1F('%s %s'%(self.type_of_hist,histo_tag),histo_tag,48,0,24)
-        hist.SetDirectory(0)
-
-        # append the new histogram to the list
-        self.hist_list.append(hist)
-
-        return hist
-
-
-    def WriteToFile(self,rootfile) :
-
-        if not rootfile :
-            return
-
-        def HistsAreIdentical(h1,h2) :
-            identical = True
-            for i in range(h1.GetNbinsX()+2) :
-                if h1.GetBinContent(i) != h2.GetBinContent(i) :
-                    identical = False
-            return identical
-
-        for i in range(len(self.hist_list)) :
-            if not i :
-                continue
-            if HistsAreIdentical(self.hist_list[i],self.hist_list[i-1]) :
-                self.hist_list[i].SetTitle('skip')
-
-        for i in reversed(self.hist_list) :
-            if i.GetTitle() == 'skip' :
-                continue
-            rootfile.cd()
-            i.Write()
-        return
-
-
-    def AddSettingToHistogram(self,histo_tag,timeOfDay_midnight,value) :
-        # The input, timeOfDay, is in hours (float), starting from MIDNIGHT
-        # but it will be CONVERTED to 4am
-
-        hist = self.getOrMakeHistogram(histo_tag)
-
-        # hour -> half hour increments
-        timeOfDay_midnight = int(2*int(timeOfDay_midnight))
-
-        # half hour increments, 12am to 4am start time conversion:
-        timeOfDay_midnight = int(timeOfDay_midnight)
-        timeOfDay = timeOfDay_midnight - 8 
-
-        # Roll pre-4am to the end of the histogram.
-        if timeOfDay < 0 :
-            timeOfDay = timeOfDay + 48 # half hour increments
-
-        hist.SetBinContent(timeOfDay+1,value)
-        return
-
-
-    def GetSettingFromHistogram(self,timeOfDay) :
-        # The input, timeOfDay, is in hours (float), starting from 4am
-        # convert to bins - because these histograms go from 0 to 24.
-
-        hist = self.latestHistogram()
-
-        if not hist :
-            'Missing histogram - exiting.'
-            import sys; sys.exit;
-
-        iterator = 0.
-        while True :
-            bin = hist.FindBin(timeOfDay-iterator)
-            if bin == 0 :
-                iterator -= 24
-
-            # Both the input and the histogram start from 4am.
-            result = hist.GetBinContent(bin)
-            #print 'timeOfDay:',timeOfDay,'iterator:',iterator,'bin:',hist.FindBin(timeOfDay-iterator),'result:',result
-
-            # Return a non-zero result.
-            if result > 0 :
-                return result
-
-            # If a result is zero, look back another half hour...
-            iterator += 0.5
-
-        return 0
-
 #
 # This class is supposed to "manage the input".
 # This means the files and trees are set up, and there is a function for getting the input files.
@@ -240,6 +138,7 @@ class ImportManager :
 
     def __init__(self,options,args) :
         self.options = options
+        self.init_time = time.mktime(time.localtime())
 
         ROOT.gROOT.LoadMacro('bgrootstruct.h+')
 
@@ -254,8 +153,10 @@ class ImportManager :
         #
         # Add all of the (detailed) branches
         #
+#         for br in branches.keys() :
+#             self.treeDetailed.Branch(br,ROOT.AddressOf(self.sDetailed,br),'%s/%s'%(br,branches[br].btype))
         for br in branches.keys() :
-            self.treeDetailed.Branch(br,ROOT.AddressOf(self.sDetailed,br),'%s/%s'%(br,branches[br].btype))
+            branches[br].AddBranchToTree(self.treeDetailed,self.sDetailed,br)
 
         #
         # Add Derived values to detailed tree
@@ -319,6 +220,8 @@ class ImportManager :
 
             f.Write()
             f.Close()
+
+        print 'Time from init to finish: %2.2f'%(time.mktime(time.localtime()) - self.init_time)
 
         print
         return
