@@ -33,11 +33,12 @@ def DownloadJSONAndMoveIntoPosition(options,args) :
     start_utc = MyTime.TimeFromString(start.strftime('%Y-%m-%dT%H:%M:%S'))
     end_utc   = MyTime.TimeFromString(end.strftime('%Y-%m-%dT%H:%M:%S'))
 
-    start_outfilestr = start.strftime('%y%m%d')
-    end_outfilestr   = end.strftime('%y%m%d')
+    start_outfilestr = start.strftime('_%y%m%d')
+    end_outfilestr   = end.strftime('_%y%m%d')
     if options.week == 0 :
-        end_outfilestr = 'thisWeek'
-    outfilename = '../data/Tidepool_Export_%s_%s.json'%(start_outfilestr,end_outfilestr)
+        start_outfilestr = ''
+        end_outfilestr = '_thisWeek'
+    outfilename = '../data/Tidepool_Export%s%s.json'%(start_outfilestr,end_outfilestr)
     print 'Name : %s'%(outfilename)
 
     raw_input('Press enter to continue.')
