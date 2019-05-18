@@ -130,3 +130,101 @@ class SettingsHistograms :
             iterator += 0.5
 
         return 0
+
+#------------------------------------------------------------------
+def HistToList(hist,outlist) :
+    # Something to convert the histo into a list
+    # input (outlist) is a list with 48 entries
+
+    # Convert the histogram to a fully-populated list
+    first_not_empty = [1] + list( range(hist.GetNbinsX(),1,-1) )
+
+    for i in first_not_empty :
+        bc = hist.GetBinContent(i)
+        if bc == 0 :
+            continue
+        outlist[0] = bc
+        break
+
+    # subsequent bins
+    for i in range(hist.GetNbinsX()) :
+        if i == 0 :
+            continue
+        bc = hist.GetBinContent(i+1)
+        outlist[i] = bc if (bc != 0) else outlist[i-1]
+
+    return
+
+
+#------------------------------------------------------------------
+class TrueUserProfile :
+
+    def __init__(self) :
+        #
+        # Independent parameters:
+        #
+        self.InsulinSensitivity = [0]*48
+        self.FoodSensitivity = [0]*48 # I think I prefer this instead of RCI * Sensitivity
+        self.FoodTa = [2.]*48
+        self.InsulinTa = [4.]*48
+        self.LiverHourlyGlucose = [0]*48 # There is going to be a timing offset issue here.
+
+        return
+
+    def AddSensitivityFromHistograms(self,h_insulin,h_ric) :
+
+        HistToList(h_insulin,self.InsulinSensitivity)
+
+        # We want to save the food sensitivity, not the RIC. Food sensitivity is the independent var.
+        tmp_ric = [0]*48
+        HistToList(h_ric,tmp_ric)
+        for i in range(len(tmp_ric)) :
+            self.FoodSensitivity[i] = self.InsulinSensitivity[i] / float(tmp_ric[i])
+
+        return
+
+    def AddHourlyGlucoseFromHistogram(self,h_basal) :
+
+        tmp_basal = [0]*48
+        HistToList(h_basal,tmp_basal)
+
+        # assume that the user was trying to match the glucose from 2 hours in the future.
+        for i in range(len(tmp_basal)) :
+            # E.g. 4*30 minutes earlier, which sometimes goes to the other end of the histo.
+            self.LiverHourlyGlucose[(i-4)%48] = tmp_basal[i] * self.InsulinSensitivity[i]
+
+        return
+
+
+    def AddDurationFromHistogram(self,h_duration) :
+
+        HistToList(h_duration,self.InsulinTa)
+        return
+
+
+    def Print(self) :
+        def tmpformat(alist,n=2) :
+            return ''.join(('%2.*f'%(n,a)).rjust(6) for a in alist)
+
+        print 'Time                        :   ',(' '*8).join([' 4am','____',' 8am','____','12am','____',
+                                                               ' 4pm','____',' 8pm','____','12pm','____'])
+        print 'InsulinSensitivity (mgdL/u) : ',tmpformat(self.InsulinSensitivity[0::2],0)
+        print '                              ',tmpformat(self.InsulinSensitivity[1::2],0)
+        print 'FoodSensitivity (mgdl/g)    : ',tmpformat(self.FoodSensitivity[0::2],1)
+        print '                              ',tmpformat(self.FoodSensitivity[1::2],1)
+        print 'InsulinTa (hours)           : ',tmpformat(self.InsulinTa[0::2],1)
+        print '                              ',tmpformat(self.InsulinTa[1::2],1)
+        print 'FoodTa (hours)              : ',tmpformat(self.FoodTa[0::2],1)
+        print '                              ',tmpformat(self.FoodTa[1::2],1)
+        print 'LiverHourlyGlucose (g/hour) : ',tmpformat(self.LiverHourlyGlucose[0::2],0) # on-the-hour
+        print '                              ',tmpformat(self.LiverHourlyGlucose[1::2],0) # 30-minute
+        return
+
+    def TrueUserProfileToCorrespondingSettings() :
+        #
+        # For the TrueUserProfile suggested, output the approximate output settings
+        #
+        # For instance, Basal insulin rate is NOT part of the user profile. But we can
+        # translate the user profile to a suggested basal rate.
+
+        pass

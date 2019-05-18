@@ -1,7 +1,7 @@
 from array import array
 import ROOT
 from TimeClass import MyTime
-from Settings import SettingsHistograms
+from Settings import SettingsHistograms,TrueUserProfile
 
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
@@ -18,7 +18,6 @@ def RootMeanSquare(vals) :
     return math.sqrt(sum(list(math.pow(a-avg,2) for a in vals))/float(len(vals)))
 
 #------------------------------------------------------------------
-
 def GetHistWithTimeAxis() :
     import ROOT
     if ROOT.gDirectory.Get('HistWithTimeAxis') :
@@ -320,6 +319,30 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
 
     containers = GetDayContainers(tree,week,day)
 
+    #
+    # Get settings - insulin sensitivity, RIC, Basal
+    #
+    sensi_histograms = SettingsHistograms('Sensitivity')
+    sensi_histograms.ReadFromFile(rootfile)
+
+    ric_histograms = SettingsHistograms('RIC')
+    ric_histograms.ReadFromFile(rootfile)
+
+    basal_histograms = SettingsHistograms('Basal')
+    basal_histograms.ReadFromFile(rootfile)
+
+    duration_histograms = SettingsHistograms('Duration')
+    duration_histograms.ReadFromFile(rootfile)
+
+    #
+    # Make BolusWizard UserProfile
+    #
+    bwzProfile = TrueUserProfile()
+    bwzProfile.AddSensitivityFromHistograms(sensi_histograms.latestHistogram(),
+                                            ric_histograms.latestHistogram())
+    bwzProfile.AddHourlyGlucoseFromHistogram(basal_histograms.latestHistogram())
+    bwzProfile.AddDurationFromHistogram(duration_histograms.latestHistogram())
+
     # Make the prediction plot (including error bars)
     prediction_plot = PredictionPlots(containers,week,day)
     prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
@@ -393,9 +416,6 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Draw settings - insulin sensitivity
     #
-    sensi_histograms = SettingsHistograms('Sensitivity')
-    sensi_histograms.ReadFromFile(rootfile)
-
     # For now, just find the latest histogram
     hist_sensi = sensi_histograms.latestHistogram().Clone()
     hist_sensi.SetName('hist_sensi')
@@ -408,8 +428,6 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Draw settings - food sensitivity
     #
-    ric_histograms = SettingsHistograms('RIC')
-    ric_histograms.ReadFromFile(rootfile)
     hist_ric = ric_histograms.latestHistogram().Clone()
     hist_ric.SetName('hist_ric')
     hist_ric.SetMarkerColor(ROOT.kRed+1)
@@ -421,8 +439,6 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Draw settings - basal
     #
-    basal_histograms = SettingsHistograms('Basal')
-    basal_histograms.ReadFromFile(rootfile)
     hist_basal = basal_histograms.latestHistogram().Clone()
     hist_basal.SetName('hist_basal')
     hist_basal.SetMarkerColor(ROOT.kBlue+1)
@@ -437,6 +453,10 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     GetMidPad(prediction_canvas).Update()
     prediction_canvas.Modified()
     prediction_canvas.Update()
+
+    print '\nBWZ profile:'
+    bwzProfile.Print()
+
     return prediction_canvas
 
 #------------------------------------------------------------------
