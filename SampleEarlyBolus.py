@@ -1,11 +1,10 @@
 import PlotFunctions as plotfunc
 import TAxisFunctions as taxisfunc
-from PyBGSuggestHelpers import TimeClass,BGFunction,PredictionPlots,GetIntegratedAverage,GetHistWithTimeAxis
+from TimeClass import MyTime
+from PyBGSuggestHelpers import BGFunction,PredictionPlots,GetIntegratedAverage,GetHistWithTimeAxis
 import ROOT
 
 def SampleEarlyBolus() :
-
-    t = TimeClass()
 
     tf1s = []
     ntest = 3
@@ -13,7 +12,7 @@ def SampleEarlyBolus() :
         #
         # Overrides
         #
-        start_of_plot_day = t.WeekDayHourToUniversal(0,x,0)
+        start_of_plot_day = MyTime.WeekDayHourToUniversal(0,x,0)
         containers = []
 
         NFOOD = [45,130,60,100]
@@ -34,14 +33,14 @@ def SampleEarlyBolus() :
         # starting bg OF DAY
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,0)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,1)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,0)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,1)
         containers[-1].type     = 'First BG'
         containers[-1].const_BG = 115.
 
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,1)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,23)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,1)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,23)
         containers[-1].type     = 'BGReading'
         containers[-1].const_BG = 115.
 
@@ -50,16 +49,16 @@ def SampleEarlyBolus() :
         #
         meal = 0
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,5-OFFSET[x]) # 9am
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,11)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,5-OFFSET[x]) # 9am
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,11)
         containers[-1].type     = 'Insulin'
         containers[-1].S        = 65.
         containers[-1].Ta       = 4.
         containers[-1].I0       = NFOOD[meal]*FACTOR[x]/float(RATIO)
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,5) # 9am
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,11)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,5) # 9am
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,11)
         containers[-1].type     = 'Food'
         containers[-1].S        = 65.
         containers[-1].Ta       = 2.
@@ -71,16 +70,16 @@ def SampleEarlyBolus() :
         #
         meal = 1
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,8-OFFSET[x])
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,14)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,8-OFFSET[x])
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,14)
         containers[-1].type     = 'Insulin'
         containers[-1].S        = 65.
         containers[-1].Ta       = 4.
         containers[-1].I0       = NFOOD[meal]*FACTOR[x]/float(RATIO)
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,8)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,14)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,8)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,14)
         containers[-1].type     = 'Food'
         containers[-1].S        = 65.
         containers[-1].Ta       = 2.
@@ -92,16 +91,16 @@ def SampleEarlyBolus() :
         #
         meal = 2
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,12-OFFSET[x])
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,18)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,12-OFFSET[x])
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,18)
         containers[-1].type     = 'Insulin'
         containers[-1].S        = 65.
         containers[-1].Ta       = 4.
         containers[-1].I0       = NFOOD[meal]*FACTOR[x]/float(RATIO)
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,12)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,18)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,12)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,18)
         containers[-1].type     = 'Food'
         containers[-1].S        = 65.
         containers[-1].Ta       = 2.
@@ -113,16 +112,16 @@ def SampleEarlyBolus() :
         #
         meal = 3
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,16-OFFSET[x])
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,22)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,16-OFFSET[x])
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,22)
         containers[-1].type     = 'Insulin'
         containers[-1].S        = 65.
         containers[-1].Ta       = 4.
         containers[-1].I0       = NFOOD[meal]*FACTOR[x]/float(RATIO)
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,16)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,22)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,16)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,22)
         containers[-1].type     = 'Food'
         containers[-1].S        = 65.
         containers[-1].Ta       = 2.
@@ -133,8 +132,8 @@ def SampleEarlyBolus() :
         # "final reading"
         #
         containers.append(BGFunction())
-        containers[-1].iov_0    = t.WeekDayHourToUniversal(0,x,23)
-        containers[-1].iov_1    = t.WeekDayHourToUniversal(0,x,25)
+        containers[-1].iov_0    = MyTime.WeekDayHourToUniversal(0,x,23)
+        containers[-1].iov_1    = MyTime.WeekDayHourToUniversal(0,x,25)
         containers[-1].type     = 'BGReading'
         containers[-1].const_BG = 115.
 

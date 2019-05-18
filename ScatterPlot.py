@@ -1,7 +1,7 @@
 import ROOT
 from array import array
-from PyBGSuggestHelpers import TimeClass,GetHistWithTimeAxis
-t = TimeClass()
+from TimeClass import MyTime
+from PyBGSuggestHelpers import GetHistWithTimeAxis
 import PlotFunctions as plotfunc
 import TAxisFunctions as taxisfunc
 
@@ -68,7 +68,7 @@ def GetOverview(tree,d1,d2) :
     nametitle = 'Week %d (N=%d)'%(last_week-d1,graphs[-1].GetN())
     graphs[-1].SetNameTitle(nametitle,nametitle)
 
-    title = '%s (N=%d, #mu=%0.1f).'%(t.GetWeeksString(last_week-d1,last_week-d2),graphs[-1].GetN(),Avg)
+    title = '%s (N=%d, #mu=%0.1f).'%(MyTime.GetWeeksString(last_week-d1,last_week-d2),graphs[-1].GetN(),Avg)
     text_l2 = '%2.1f%% below, %2.1f%% target, %2.1f%% above'%(n_below_80,n_target,n_above_160)
     text_l3 = '%2.1f%% above 200'%(n_above_200)
 

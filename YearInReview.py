@@ -1,4 +1,5 @@
-from PyBGSuggestHelpers import a1cToBS,RootMeanSquare,TimeClass
+from TimeClass import MyTime
+from PyBGSuggestHelpers import a1cToBS,RootMeanSquare
 import PlotFunctions as plotfunc
 import ROOT
 from array import array
@@ -90,11 +91,6 @@ def GetAverageBGsCoarse(hist,all_vals,n_weeks) :
 #-------------------------------------------------------------------------
 def YearInReview(tree,nyears=7) :
 
-    #
-    # Requred setup
-    #
-    t = TimeClass()
-
     last_week = 0
     for i in range(tree.GetEntries()) :
         tree.GetEntry(i)
@@ -135,7 +131,7 @@ def YearInReview(tree,nyears=7) :
         line = line.replace('\n','')
         date = line.split(',')[0].lstrip(' ').rstrip(' ')
         a1c  = line.split(',')[1].lstrip(' ').rstrip(' ')
-        a1x.append(t.GetWeekOfYear(t.TimeFromString('%s 04:00:00'%(date))))
+        a1x.append(MyTime.GetWeekOfYear(MyTime.TimeFromString('%s 04:00:00'%(date))))
         a1y.append(a1cToBS(float(a1c))[0])
 
     x_a1 = array('d',a1x)

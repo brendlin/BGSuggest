@@ -1,4 +1,3 @@
-from PyBGSuggestHelpers import TimeClass
 import ROOT
 from array import array
 import PlotFunctions as plotfunc

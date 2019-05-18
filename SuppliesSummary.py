@@ -1,10 +1,8 @@
 import ROOT
-from PyBGSuggestHelpers import TimeClass
+from TimeClass import MyTime
 #from PlotUtils import SmartPlot,color,markerstyles
 
 def SuppliesSummary(tree,nyears=4) :
-
-    t = TimeClass()
 
     NWEEKS=365*nyears / 7
 
@@ -63,12 +61,12 @@ def SuppliesSummary(tree,nyears=4) :
         if tree.Rewind :
             rolling_rewinds -= 1
             if last_rewind :
-                rewind_histo.Fill((tree.UniversalTime-last_rewind)/float(t.OneDay))
+                rewind_histo.Fill((tree.UniversalTime-last_rewind)/float(MyTime.OneDay))
             last_rewind = tree.UniversalTime
         if tree.BGReading > 0. :
             rolling_bgs -= 1/10.
             if last_bg :
-                test_f_histo.Fill((tree.UniversalTime-last_bg)/float(t.OneHour))
+                test_f_histo.Fill((tree.UniversalTime-last_bg)/float(MyTime.OneHour))
             last_bg = tree.UniversalTime
 
     #print week_in_question

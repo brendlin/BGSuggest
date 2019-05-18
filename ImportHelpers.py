@@ -1,6 +1,6 @@
 import ROOT
 import os
-from PyBGSuggestHelpers import MyTime
+from TimeClass import MyTime
 from Settings import SettingsHistograms
 import time
 

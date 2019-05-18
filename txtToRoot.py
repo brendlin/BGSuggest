@@ -1,7 +1,7 @@
 import ROOT
 import sys
 import time
-from PyBGSuggestHelpers import MyTime
+from TimeClass import MyTime
 import ImportHelpers
 from ImportHelpers import branches
 from ImportHelpers import dataStorageInstance as storage

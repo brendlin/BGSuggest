@@ -10,7 +10,7 @@ the_path = ('/').join(os.getcwd().split('/')[:-1])
 print 'Adding %s to PYTHONPATH.'%(the_path)
 sys.path.append(the_path)
 
-from PyBGSuggestHelpers import MyTime
+from TimeClass import MyTime
 
 def DownloadJSONAndMoveIntoPosition(options,args) :
 
