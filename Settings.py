@@ -78,9 +78,6 @@ class SettingsHistograms :
 
             self.hist_list.append(i.ReadObj())
 
-        for i in self.hist_list :
-            print i.GetName()
-
         return
 
 

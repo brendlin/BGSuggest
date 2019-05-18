@@ -1,6 +1,7 @@
 import time
 from array import array
 import ROOT
+from Settings import SettingsHistograms
 
 class UNIXcolor:
     PURPLE = '\033[95m'
@@ -161,7 +162,6 @@ class BGFunction :
         self.I0 = 0.    # Bolus volume delivered
         self.C = 0.     # carb input (grams)
         self.RIC = 0.
-        self.Registered = None
         #
         self.BWZCorrectionEstimate = 0.
         self.BWZFoodEstimate = 0.
@@ -206,41 +206,25 @@ class BGFunction :
         return (self.getIntegral(time,S_fac,C_fac,RIC_fac,RIC_n) -
                 self.getIntegral(time*1000,S_fac,C_fac,RIC_fac,RIC_n)) # "infinity"
 
-    def getDDX(self,time,delta,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
+    def getBGImpactDerivPerHour(self,time_ut) :
         import math
-        #time += delta
-        if time < self.iov_0 : return 0.
-        if time > self.iov_1 : return 0.
 
-        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
+        if (time_ut < self.iov_0) or (time_ut > self.iov_1) :
+            return 0.
+
+        time_hr = (time_ut-self.iov_0)/float(MyTime.OneHour)
         
         result = 2*math.pow((1/float(self.Ta)),2)
         result *= 3.0 # ln 20
-        result *= self.getEffectiveSensitivity(S_fac=S_fac,C_fac=C_fac,RIC_fac=RIC_fac,RIC_n=RIC_n)
+        result *= self.getEffectiveSensitivity()
         result *= time_hr
         result *= math.pow(0.05,math.pow(time_hr/float(self.Ta),2))
-        #result *= (time_hr < 6)
-        result *= delta
-        #print 'returning result',result
+
         return result
 
-    def getDDXtimesInterval(self,time,delta,S_fac=1.,C_fac=1.,RIC_fac=1.,RIC_n=0.) :
-        import math
-        #time += delta
-        if time < self.iov_0 : return 0.
-        if time > self.iov_1 : return 0.
+    def getBGImpactDerivTimesInterval(self,time_ut,delta_hr) :
 
-        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
-        
-        result = 2*math.pow((1/float(self.Ta)),2)
-        result *= 3.0 # ln 20
-        result *= self.getEffectiveSensitivity(S_fac=S_fac,C_fac=C_fac,RIC_fac=RIC_fac,RIC_n=RIC_n)
-        result *= time_hr
-        result *= math.pow(0.05,math.pow(time_hr/float(self.Ta),2))
-        #result *= (time_hr < 6)
-        result *= delta
-        #print 'returning result',result
-        return result
+        return self.getBGImpactDerivPerHour(time_ut) * delta_hr
 
     def Print(self) :
 
@@ -252,7 +236,15 @@ class BGFunction :
         print 'S    ',self.S    
         print 'Ta   ',self.Ta   
         print 'I0   ',self.I0
-        print 'Reg  ',self.Registered
+        print 'C    ',self.C
+        if self.I0 or self.C :
+            print 'Effective BG',self.getEffectiveSensitivity()
+            print 'BG Integral',self.getIntegral(self.iov_1)
+            hours_per_step = 0.2
+            ddxes = []
+            for i in range(int(6./hours_per_step)) :
+                ddxes.append(self.getBGImpactDerivTimesInterval(self.iov_0+i*hours_per_step*float(MyTime.OneHour),hours_per_step))
+            print 'BG ddX * delta',sum ( ddxes )
 
         return
 
@@ -502,62 +494,43 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Draw settings - insulin sensitivity
     #
-    if rootfile :
-        hist_sensi = None
-        for i in rootfile.GetListOfKeys() :
-            if 'Sensitivity' not in i.GetName() :
-                continue
-            #print i.GetName()
-            #print 'day of week is',t.GetDayOfWeek(time_in_question)
-            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('Sensitivity ','')) :
-                #print 'Stopping at',i.GetName()
-                hist_sensi = i.ReadObj()
-                hist_sensi.SetMarkerColor(ROOT.kGreen+1)
-                hist_sensi.SetMarkerSize(0.2)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'p')
-                hist_sensi.SetMarkerSize(6)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'text45')
-                break
+    sensi_histograms = SettingsHistograms('Sensitivity')
+    sensi_histograms.ReadFromFile(rootfile)
+
+    # For now, just find the latest histogram
+    hist_sensi = sensi_histograms.latestHistogram().Clone()
+    hist_sensi.SetName('hist_sensi')
+    hist_sensi.SetMarkerColor(ROOT.kGreen+1)
+    hist_sensi.SetMarkerSize(0.2)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'p')
+    hist_sensi.SetMarkerSize(6)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'text45')
 
     #
     # Draw settings - food sensitivity
     #
-    if rootfile :
-        hist_foodsensi = None
-        for i in rootfile.GetListOfKeys() :
-            if 'RIC' not in i.GetName() :
-                continue
-            #print i.GetName()
-            #print 'day of week is',MyTime.GetDayOfWeek(time_in_question)
-            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('RIC ','')) :
-                #print 'Stopping at',i.GetName()
-                hist_foodsensi = i.ReadObj()
-                hist_foodsensi.SetMarkerSize(0.2)
-                hist_foodsensi.SetMarkerColor(ROOT.kRed+1)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_foodsensi,'p')
-                hist_foodsensi.SetMarkerSize(6)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_foodsensi,'text45')
-                break
+    ric_histograms = SettingsHistograms('RIC')
+    ric_histograms.ReadFromFile(rootfile)
+    hist_ric = ric_histograms.latestHistogram().Clone()
+    hist_ric.SetName('hist_ric')
+    hist_ric.SetMarkerColor(ROOT.kRed+1)
+    hist_ric.SetMarkerSize(0.2)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_ric,'p')
+    hist_ric.SetMarkerSize(6)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_ric,'text45')
 
     #
     # Draw settings - basal
     #
-    if rootfile :
-        hist_basalsensi = None
-        for i in rootfile.GetListOfKeys() :
-            if 'Basal' not in i.GetName() :
-                continue
-            #print i.GetName()
-            #print 'day of week is',MyTime.GetDayOfWeek(time_in_question)
-            if MyTime.DayWeekToUniversal(week,day) > MyTime.TimeFromString(i.GetName().replace('Basal ','')) :
-                #print 'Stopping at',i.GetName()
-                hist_basalsensi = i.ReadObj()
-                hist_basalsensi.SetMarkerSize(0.2)
-                hist_basalsensi.SetMarkerColor(ROOT.kBlue+1)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basalsensi,'p')
-                hist_basalsensi.SetMarkerSize(6)
-                plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basalsensi,'text45')
-                break
+    basal_histograms = SettingsHistograms('Basal')
+    basal_histograms.ReadFromFile(rootfile)
+    hist_basal = basal_histograms.latestHistogram().Clone()
+    hist_basal.SetName('hist_basal')
+    hist_basal.SetMarkerColor(ROOT.kBlue+1)
+    hist_basal.SetMarkerSize(0.2)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basal,'p')
+    hist_basal.SetMarkerSize(6)
+    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basal,'text45')
 
     prediction_canvas.GetPrimitive('pad_sub').Modified()
     prediction_canvas.GetPrimitive('pad_sub').Update()
@@ -675,7 +648,7 @@ def GetDayContainers(tree,week,day) :
 
             c = BGFunction('Insulin',Ta=4,I0Est=0,S=60)
             c.iov_0 = tree.UniversalTime
-            c.iov_1 = tree.UniversalTime+6.*MyTime.OneHour
+            c.iov_1 = c.iov_0 + 6.*MyTime.OneHour
             c.I0    = tree.BolusVolumeDelivered
             c.S     = 60. # need to fix!
 
@@ -766,9 +739,10 @@ def ComparePredictionToReality(prediction,reality,reverse=False) :
     return h
 
 #------------------------------------------------------------------
-def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_up=-1,RIC_n_dn=1) :
+def GetDeltaBGversusTimePlot(the_type,containers,week,day) :
     #
-    # Pl
+    # Plot the deltaBG per hour. Because it is per hour, and plotted versus hour, the integral
+    # is the total dose.
     #
 
     import math
@@ -776,20 +750,18 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day,constant_ref=-1,RIC_n_
 
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
     hours_per_step = 0.1
-    x_time = []
-    y_bg = []
 
     h = ROOT.TH1F('%d_%d_%s'%(week,day,the_type),'asdf',int(24./hours_per_step),-0.5,24.5)
-    h.SetBinContent(0,0)
-    h.SetBinContent(h.GetNbinsX()+1,0)
+
     for i in range(int(24./hours_per_step)+1) :
         the_time = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour) # universal
         for c in containers :
-            if the_time < c.iov_0 : continue
+            if the_time < c.iov_0 :
+                continue
             if c.C and 'food' in the_type :
-                h.AddBinContent(i+1,c.getDDX(the_time,hours_per_step) / float(hours_per_step))
+                h.AddBinContent(i+1,c.getBGImpactDerivPerHour(the_time))
             if c.I0 and 'insulin' in the_type :
-                h.AddBinContent(i+1,c.getDDX(the_time,hours_per_step) / float(hours_per_step))
+                h.AddBinContent(i+1,c.getBGImpactDerivPerHour(the_time))
     return h
 
 #------------------------------------------------------------------
@@ -814,8 +786,8 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) 
 
     bg_estimates = []
 
-    for c in containers :
-        c.Print()
+#     for c in containers :
+#         c.Print()
 
     # When we hit a BG reading, then we want to consider (once) resetting the prediction.
     considered_for_bgReset = []
@@ -863,7 +835,7 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) 
 
             # For the typical bin in the day-plot:
             if c.I0 or c.C :
-                impactInTimeInterval = c.getDDXtimesInterval(the_time,hours_per_step)
+                impactInTimeInterval = c.getBGImpactDerivTimesInterval(the_time,hours_per_step)
                 bg_estimates[-1] += impactInTimeInterval
                 max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.bgImpactRemaining(the_time)))
 
