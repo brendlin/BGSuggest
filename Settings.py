@@ -63,6 +63,27 @@ class SettingsHistograms :
         return
 
 
+    def ReadFromFile(self,rootfile) :
+
+        if not rootfile :
+            return
+
+        self.hist_list = []
+
+        # Reverse the order in order for the latest histogram to be in the last position.
+        for i in reversed(rootfile.GetListOfKeys()) :
+
+            if self.type_of_hist not in i.GetName() :
+                continue
+
+            self.hist_list.append(i.ReadObj())
+
+        for i in self.hist_list :
+            print i.GetName()
+
+        return
+
+
     def AddSettingToHistogram(self,histo_tag,timeOfDay_midnight,value) :
         # The input, timeOfDay, is in hours (float), starting from MIDNIGHT
         # but it will be CONVERTED to 4am
