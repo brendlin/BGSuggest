@@ -45,7 +45,7 @@ def ToMgDL(value,cfactor) :
 
 def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                     treeSummary,sSummary,
-                    basal_histograms,sensi_histograms,ric_histograms,
+                    basal_histograms,sensi_histograms,ric_histograms,duration_histograms,
                     options) :
 
     keys = []
@@ -88,6 +88,13 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         #
         if itype == 'pumpSettings' :
             timestamp = line['deviceTime']
+
+            duration = line["bolus"]["calculator"]["insulin"]["duration"]
+            if not duration_histograms.hist_list :
+                # There is only one per day.
+                duration_histograms.AddSettingToHistogram(timestamp,0,duration)
+            elif duration != duration_histograms.GetSettingFromHistogram(0) :
+                duration_histograms.AddSettingToHistogram(timestamp,0,duration)
 
             for entries in line['basalSchedules']['standard'] :
                 start_time = entries['start'] / MyTime.MillisecondsInAnHour

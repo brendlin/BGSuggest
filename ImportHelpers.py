@@ -149,6 +149,7 @@ class ImportManager :
         self.basal_histograms = SettingsHistograms('Basal')
         self.sensi_histograms = SettingsHistograms('Sensitivity')
         self.ric_histograms = SettingsHistograms('RIC')
+        self.duration_histograms = SettingsHistograms('Duration')
 
         #
         # Add all of the (detailed) branches
@@ -204,13 +205,14 @@ class ImportManager :
     def ProcessFile(self,inputfilename,ProcessFileFunction) :
         ProcessFileFunction(inputfilename,self.treeDetailed,self.sDetailed,
                             self.treeSummary,self.sSummary,
-                            self.basal_histograms,self.sensi_histograms,self.ric_histograms,
+                            self.basal_histograms,self.sensi_histograms,self.ric_histograms,self.duration_histograms,
                             self.options)
 
 
     def Finish(self) :
 
-        for settings_class in [self.basal_histograms,self.sensi_histograms,self.ric_histograms] :
+        for settings_class in [self.basal_histograms,self.sensi_histograms,self.ric_histograms,
+                               self.duration_histograms] :
             settings_class.WriteToFile(self.rootfile)
             settings_class.WriteToFile(self.rootfile_all)
 

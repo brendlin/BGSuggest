@@ -27,7 +27,7 @@ def main(options,args) :
 
 def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
                    treeSummary,sSummary,
-                   basal_histograms,sensi_histograms,ric_histograms,
+                   basal_histograms,sensi_histograms,ric_histograms,duration_histograms,
                    options) :
 
     counter = 0
