@@ -372,7 +372,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
         plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot,'p')
 
     # Residual plot for BG data
-    residual_plot_2 = ComparePredictionToReality(bg_data,prediction_plot,reverse=True)
+    residual_plot_2 = ComparePredictionToReality(prediction_plot,bg_data)
     residual_plot_2.SetMarkerSize(0.8)
     residual_plot_2.SetMarkerColor(ROOT.kRed+1)
     plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot_2,'p')
@@ -629,32 +629,42 @@ def GetDayContainers(tree,week,day) :
     return containers
 
 #------------------------------------------------------------------
-def ComparePredictionToReality(prediction,reality,reverse=False) :
+def ComparePredictionToReality(prediction,reality) :
     from array import array
     import math
 
-    x_real = reality.GetX()
-    y_real = reality.GetY()
-
-    x_pred = prediction.GetX()
-    y_pred = prediction.GetY()
-    
-    x_diff = []
-    y_diff = []
-
-    for xp in range(prediction.GetN()) :
-        not_yet = True
-        for xr in range(reality.GetN()) :
-            if not_yet and math.fabs(x_pred[xp] - x_real[xr]) < 1./6. :
-                x_diff.append(x_pred[xp])
-                factor = -1. if reverse else 1.
-                y_diff.append((y_real[xr] - y_pred[xp])*factor)
-                not_yet = False
-            if not not_yet :
-                break
-
-    h = ROOT.TGraph(len(x_diff),array('d',x_diff),array('d',y_diff))
+    h = ROOT.TGraph()
     h.SetName('Compare_prediction_to_reality')
+
+    max_time_delta = 1./6. # 10 minutes. Compare to "hours_per_step" in the PredictionPlots.
+
+    # Try to assign a comparison for every reality point
+    for i in range(reality.GetN()) :
+        min_x_diff = 9999999
+        best_comparison = 9999999
+        reality_x = reality.GetX()[i]
+
+        # Loop through prediction points, find the closest one
+        for j in range(prediction.GetN()) :
+
+            x_diff = reality_x - prediction.GetX()[j]
+
+            # Often we reset our future prediction to this BG, so that would be unfair.
+            if x_diff < 0 :
+                continue
+
+            # if it is farther away from 10 minutes, then dont bother
+            if math.fabs(x_diff) > max_time_delta :
+                continue
+
+            # If we find a better one, replace it with that one
+            if x_diff < min_x_diff :
+                min_x_diff = x_diff
+                best_comparison = reality.GetY()[i] - prediction.GetY()[j]
+
+        if min_x_diff < 9999999 :
+            h.SetPoint(h.GetN(),reality_x,best_comparison)
+
     return h
 
 #------------------------------------------------------------------
@@ -684,7 +694,7 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day) :
     return h
 
 #------------------------------------------------------------------
-def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) :
+def PredictionPlots(containers,week,day) :
     # NEED TO FIX RIC STUFF!
     #
     # The standard prediction plot.
@@ -698,7 +708,7 @@ def PredictionPlots(containers,week,day,constant_ref=-1,RIC_n_up=2,RIC_n_dn=-2) 
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
 
     # Granularity of the prediction
-    hours_per_step = 0.2
+    hours_per_step = 0.1
 
     prediction_graph = ROOT.TGraph()
     prediction_graph.SetTitle('prediction')
