@@ -188,6 +188,9 @@ class TrueUserProfile :
     def getFoodTa(self,time_ut) :
         return self.FoodTa[self.getBin(time_ut)]
 
+    def getLiverHourlyGlucose(self,time_ut) :
+        return self.LiverHourlyGlucose[self.getBin(time_ut)]
+
     def AddSensitivityFromHistograms(self,h_insulin,h_ric) :
 
         HistToList(h_insulin,self.InsulinSensitivity)
@@ -212,7 +215,7 @@ class TrueUserProfile :
         # assume that the user was trying to match the glucose from 2 hours in the future.
         for i in range(len(tmp_basal)) :
             # E.g. 4*30 minutes earlier, which sometimes goes to the other end of the histo.
-            self.LiverHourlyGlucose[(i-4)%48] = tmp_basal[i] * self.InsulinSensitivity[i]
+            self.LiverHourlyGlucose[(i+4)%48] = - tmp_basal[i] * self.InsulinSensitivity[i]
 
         return
 

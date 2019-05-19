@@ -2,7 +2,7 @@ from array import array
 import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
-from BGActionClasses import BGMeasurement,InsulinBolus,Food
+from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose
 
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
@@ -344,6 +344,9 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     bwzProfile.AddHourlyGlucoseFromHistogram(basal_histograms.latestHistogram())
     bwzProfile.AddDurationFromHistogram(duration_histograms.latestHistogram())
 
+    # Add basal glucose to containers
+    containers.append(LiverBasalGlucose())
+
     # Make the prediction plot (including error bars)
     prediction_plot = PredictionPlots(containers,bwzProfile,week,day)
     prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
@@ -352,17 +355,17 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Make the food and insulin blobs
     #
-    food_plot = GetDeltaBGversusTimePlot('Food',containers,bwzProfile,week,day,doStack=True)
+    food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,['Food','LiverBasalGlucose'],bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
-    insulin_plot = GetDeltaBGversusTimePlot('Bolus',containers,bwzProfile,week,day,doStack=True)
+    insulin_plot = GetDeltaBGversusTimePlot('Bolus',containers,['InsulinBolus'],bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['Food','InsulinBolus'],bwzProfile,week,day)
     both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
     #plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
@@ -683,33 +686,38 @@ def ComparePredictionToReality(prediction,reality) :
     return h
 
 #------------------------------------------------------------------
-def GetDeltaBGversusTimePlot(the_type,containers,settings,week,day,doStack=False) :
+def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=False) :
     #
     # Plot the deltaBG per hour. Because it is per hour, and plotted versus hour, the integral
     # is the total dose.
-    # the_type needs to be 'Food','Bolus', or 'FoodOrBolus'
+    # match_to needs to be ['Food','InsulinBolus','LiverBasalGlucose'] or some combination
     #
     import math
 
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
     hours_per_step = 0.1
-    hist_args = (int(24./hours_per_step),-0.5,24.5)
-    tag = '%d_%d_%s'%(week,day,the_type)
+    hist_args = (int(24./hours_per_step),0,24)
+    tag = '%d_%d_%s'%(week,day,name)
 
     c_hists = []
     toggleLightDark = True
 
     for ci,c in enumerate(containers) :
 
+        classname = c.__class__.__name__
+
         # check c.IsBolus(), c.IsFood() or c.IsFoodOrBolus()
-        if not getattr(c,'Is'+the_type)() :
+        if not classname in match_to :
             continue
 
         c_hists.append(ROOT.TH1F('%s_%d'%(tag,ci),'asdf',*hist_args))
 
-        color = {'Bolus':ROOT.kGreen+1,
-                 'Food':ROOT.kRed+1,
-                 'FoodOrBolus':ROOT.kBlack}.get(the_type)
+        color = ROOT.kBlack
+        if doStack :
+            color =  {'InsulinBolus':ROOT.kGreen+1,
+                      'Food':ROOT.kRed+1,
+                      'LiverBasalGlucose':ROOT.kOrange,
+                      }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
         toggleLightDark = not toggleLightDark
@@ -792,8 +800,9 @@ def PredictionPlots(containers,settings,week,day) :
 
                 # Find the first BG
                 first_bg_time = findFirstBG(containers).iov_0
-                integral = c.getIntegral(the_time,settings) - c.getIntegral(first_bg_time,settings)
-                bg_estimates[-1] += integral
+
+                # Add the integral from the first BG time up to this time
+                bg_estimates[-1] += c.getIntegral(first_bg_time,the_time,settings)
                 continue
 
             # If the object time has expired, skip it.

@@ -3,11 +3,17 @@ from TimeClass import MyTime
 
 #------------------------------------------------------------------
 def InsulinActionCurve(time_hr,Ta) :
+    if time_hr < 0 :
+        return 0
+
     result = 1 - math.pow(0.05,math.pow(time_hr/float(Ta),2))
     return result
 
 #------------------------------------------------------------------
 def InsulinActionCurveDerivative(time_hr,Ta) :
+    if time_hr < 0 :
+        return 0
+
     result = math.log(20)*2*math.pow((1/float(Ta)),2)
     result *= time_hr
     result *= math.pow(0.05,math.pow(time_hr/float(Ta),2))
@@ -31,8 +37,8 @@ class BGEventBase :
     def IsFood(self) :
         return self.__class__.__name__ == 'Food'
 
-    def IsFoodOrBolus(self) :
-        return self.__class__.__name__ in ['Food','InsulinBolus']
+    def IsBasalGlucose(self) :
+        return self.__class__.__name__ == 'LiverBasalGlucose'
 
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
@@ -41,13 +47,14 @@ class BGActionBase(BGEventBase) :
         BGEventBase.__init__(self,iov_0,iov_1)
         return
 
-    def getIntegralBase(self,time,settings,whichTa) :
+    def getIntegralBase(self,time_start,time_end,settings,whichTa) :
         # whichTa is a string (either 'getInsulinTa' or 'getFoodTa')
 
-        if time < self.iov_0 :
+        if time_end < self.iov_0 :
             return 0.
 
-        time_hr = (time-self.iov_0)/float(MyTime.OneHour)
+        time_hr_start = (time_start - self.iov_0)/float(MyTime.OneHour)
+        time_hr_end   = (time_end   - self.iov_0)/float(MyTime.OneHour)
 
         # Get the appropriate decay time
         Ta = getattr(settings,whichTa)(self.iov_0)
@@ -55,7 +62,7 @@ class BGActionBase(BGEventBase) :
         # Get the magnitude (virtual, must be specified by the derived class)
         magnitude = self.getMagnitudeOfBGEffect(settings)
 
-        return InsulinActionCurve(time_hr,Ta) * magnitude
+        return (InsulinActionCurve(time_hr_end,Ta) - InsulinActionCurve(time_hr_start,Ta)) * magnitude
 
 
     # The BG equivalent of "Active Insulin"
@@ -64,7 +71,7 @@ class BGActionBase(BGEventBase) :
         infinity = time_ut+MyTime.OneYear
 
         # getIntegral is virtual, specified in the derived class
-        return self.getIntegral(time_ut,settings) - self.getIntegral(infinity,settings)
+        return self.getIntegral(time_ut,infinity,settings)
 
 
     # Derivative, useful for making e.g. absorption plots
@@ -78,6 +85,7 @@ class BGActionBase(BGEventBase) :
 
         return InsulinActionCurveDerivative(time_hr,Ta) * self.getMagnitudeOfBGEffect(settings)
 
+    # TODO: just replace this with the integral, no???
     def getBGEffectDerivPerHourTimesInterval(self,time_ut,delta_hr,settings) :
         return self.getBGEffectDerivPerHour(time_ut,settings) * delta_hr
 
@@ -112,8 +120,8 @@ class InsulinBolus(BGActionBase) :
     def getMagnitudeOfBGEffect(self,settings) :
         return settings.getInsulinSensitivity(self.iov_0) * self.insulin
 
-    def getIntegral(self,time,settings) :
-        return self.getIntegralBase(time,settings,'getInsulinTa')
+    def getIntegral(self,time_start,time_end,settings) :
+        return self.getIntegralBase(time_start,time_end,settings,'getInsulinTa')
 
     # Derivative, useful for making e.g. absorption plots
     def getBGEffectDerivPerHour(self,time_ut,settings) :
@@ -148,9 +156,49 @@ class Food(BGActionBase) :
     def getMagnitudeOfBGEffect(self,settings) :
         return settings.getFoodSensitivity(self.iov_0) * self.food
 
-    def getIntegral(self,time,settings) :
-        return self.getIntegralBase(time,settings,'getFoodTa')
+    def getIntegral(self,time_start,time_end,settings) :
+        return self.getIntegralBase(time_start,time_end,settings,'getFoodTa')
 
     # Derivative, useful for making e.g. absorption plots
     def getBGEffectDerivPerHour(self,time_ut,settings) :
         return self.getBGEffectDerivPerHourBase(time_ut,settings,'getFoodTa')
+
+#------------------------------------------------------------------
+class LiverBasalGlucose(BGEventBase) :
+    # This one is a bit special, since its effect is driven entirely
+    # by the setting LiverHourlyGlucose.
+    # - It has an "infinite" (or undefined) magnitude
+    # - It has no defined start time, so its integral can only be defined between two moments
+
+    def __init__(self) :
+        BGEventBase.__init__(self,0,float('inf'))
+        return
+
+    def getIntegral(self,time_start,time_end,settings) :
+
+        sum = 0
+
+        # consider all overlapping bins
+        for i in range(settings.getBin(time_start),settings.getBin(time_end)+1) :
+
+            # For each bin, find the valid time interval
+            # This should ensure that the final bin is treated correctly.
+            low_edge = max(time_start,binLowEdge)
+            up_edge  = min(time_end  ,time_end  )
+
+            delta_time = up_edge - low_edge
+
+            # return (Glucose / hour) * D(hour)
+            sum += delta_time * settings.LiverHourlyGlucose[i]
+
+        return sum
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr) :
+
+        # Yeah this is really just the integral.
+        return self.getIntegral(time_start,time_start + delta_hr*MyTime.OneHour)
+
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+
+        # just a wrapper for the true user setting
+        return settings.getLiverHourlyGlucose(time_ut)
