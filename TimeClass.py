@@ -43,7 +43,7 @@ class TimeClass :
 
     def GetTimeOfDay(self,l) :
         # Starting from 4am
-        l = long(l)-self.OneHour*4.
+        l = l-self.OneHour*4.
         return time.localtime(l).tm_hour + time.localtime(l).tm_min/60.
 
     def GetTimeOfDayFromMidnight(self,l) :

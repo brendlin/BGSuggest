@@ -1,4 +1,5 @@
 import ROOT
+from TimeClass import MyTime
 
 #
 # This is meant to store a list of settings histograms, with the day starting from 4am.
@@ -171,6 +172,22 @@ class TrueUserProfile :
 
         return
 
+    def getBin(self,time_ut) :
+        # From 4am ... and assuming 48 bins
+        return int(2*MyTime.GetTimeOfDay(time_ut))
+
+    def getInsulinSensitivity(self,time_ut) :
+        return self.InsulinSensitivity[self.getBin(time_ut)]
+
+    def getFoodSensitivity(self,time_ut) :
+        return self.FoodSensitivity[self.getBin(time_ut)]
+
+    def getInsulinTa(self,time_ut) :
+        return self.InsulinTa[self.getBin(time_ut)]
+
+    def getFoodTa(self,time_ut) :
+        return self.FoodTa[self.getBin(time_ut)]
+
     def AddSensitivityFromHistograms(self,h_insulin,h_ric) :
 
         HistToList(h_insulin,self.InsulinSensitivity)
@@ -180,6 +197,10 @@ class TrueUserProfile :
         HistToList(h_ric,tmp_ric)
         for i in range(len(tmp_ric)) :
             self.FoodSensitivity[i] = self.InsulinSensitivity[i] / float(tmp_ric[i])
+
+        # Invert the sign of the sensitivity:
+        for i in range(len(self.InsulinSensitivity)) :
+            self.InsulinSensitivity[i] = -self.InsulinSensitivity[i]
 
         return
 

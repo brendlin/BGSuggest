@@ -2,6 +2,7 @@ from array import array
 import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
+from BGActionClasses import BGMeasurement,InsulinBolus,Food
 
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
@@ -344,23 +345,23 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     bwzProfile.AddDurationFromHistogram(duration_histograms.latestHistogram())
 
     # Make the prediction plot (including error bars)
-    prediction_plot = PredictionPlots(containers,week,day)
+    prediction_plot = PredictionPlots(containers,bwzProfile,week,day)
     prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),prediction_plot,'lE3')
 
-    food_plot = GetDeltaBGversusTimePlot('food',containers,week,day)
+    food_plot = GetDeltaBGversusTimePlot('food',containers,bwzProfile,week,day)
     food_plot.SetFillStyle(3001)
     food_plot.SetFillColor(ROOT.kRed+1)
     food_plot.SetLineColor(ROOT.kRed+1)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),food_plot,'lhist')
 
-    insulin_plot = GetDeltaBGversusTimePlot('insulin',containers,week,day)
+    insulin_plot = GetDeltaBGversusTimePlot('insulin',containers,bwzProfile,week,day)
     insulin_plot.SetFillStyle(3001)
     insulin_plot.SetFillColor(ROOT.kGreen+1)
     insulin_plot.SetLineColor(ROOT.kGreen+1)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),insulin_plot,'lhist')
 
-    both_plot = GetDeltaBGversusTimePlot('insulin_food',containers,week,day)
+    both_plot = GetDeltaBGversusTimePlot('insulin_food',containers,bwzProfile,week,day)
     both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
@@ -529,7 +530,8 @@ def GetDayContainers(tree,week,day) :
             UT_next,bg_read = FindTimeAndBGOfPreviousBG(tree,i)
 
             # Make the "First BG" container entry:
-            c = BGFunction('First BG', iov_0=tree.UniversalTime, iov_1=UT_next, const_BG=bg_read)
+            c = BGMeasurement(tree.UniversalTime,UT_next,bg_read)
+            c.firstBG = True
             containers.append(c)
 
             # Anything 6h before first measurement is a relevant event
@@ -555,21 +557,15 @@ def GetDayContainers(tree,week,day) :
         if tree.BGReading > 0 and tree.UniversalTime > start_of_plot_day :
 
             # Make a BGReading container
-            c = BGFunction('BGReading', iov_0=tree.UniversalTime, const_BG=tree.BGReading)
-            c.iov_1 = FindTimeOfNextBG(tree,i)
-
-            # Add the BG reading to the list
+            c = BGMeasurement(tree.UniversalTime,FindTimeOfNextBG(tree,i),tree.BGReading)
             containers.append(c)
 
 
         # Insulin
         if tree.BolusVolumeDelivered > 0 :
 
-            c = BGFunction('Insulin',Ta=4,I0Est=0,S=60)
-            c.iov_0 = tree.UniversalTime
-            c.iov_1 = c.iov_0 + 6.*MyTime.OneHour
-            c.I0    = tree.BolusVolumeDelivered
-            c.S     = 60. # need to fix!
+            ut = tree.UniversalTime
+            c = InsulinBolus(ut, ut + 6.*MyTime.OneHour, tree.BolusVolumeDelivered)
 
             # Matching BWZEstimate from delivered insulin
             IsBWZEstimate = False
@@ -578,13 +574,13 @@ def GetDayContainers(tree,week,day) :
             for j in range(i-1,i-10,-1) + range(i+1,i+10) :
                 tree.GetEntry(j)
                 if tree.BWZEstimate > 0 and (abs(tree.UniversalTime - c.iov_0) < 5*MyTime.OneSecond) :
-                    c.I0Est = tree.BWZEstimate
-                    c.S     = tree.BWZInsulinSensitivity
+                    c.BWZEstimate           = tree.BWZEstimate
+                    c.BWZInsulinSensitivity = tree.BWZInsulinSensitivity
                     c.BWZCorrectionEstimate = tree.BWZCorrectionEstimate
                     c.BWZFoodEstimate       = tree.BWZFoodEstimate
                     c.BWZActiveInsulin      = tree.BWZActiveInsulin
                     c.BWZBGInput            = tree.BWZBGInput
-                    c.RIC                   = tree.BWZCarbRatio
+                    c.BWZCarbRatio          = tree.BWZCarbRatio
                     IsBWZEstimate = True
                     break
 
@@ -594,7 +590,7 @@ def GetDayContainers(tree,week,day) :
             if not IsBWZEstimate :
                 print 'Warning! Could not find BWZ estimate!',MyTime.StringFromTime(c.iov_0)
 
-            if IsBWZEstimate and (c.I0 != c.I0Est) :
+            if IsBWZEstimate and (c.insulin != c.BWZEstimate) :
                 c.BWZMatchedDelivered = False
 
             if c.iov_0 > start_printouts :
@@ -607,19 +603,19 @@ def GetDayContainers(tree,week,day) :
         #
         if tree.BWZCarbInput > 0 :
 
-            c = BGFunction('Food',Ta=2)
-            c.iov_0 = tree.UniversalTime
-            c.iov_1 = tree.UniversalTime+6.*MyTime.OneHour
-            c.S     = tree.BWZInsulinSensitivity
-            c.C   = tree.BWZCarbInput
-            c.RIC = tree.BWZCarbRatio
+            ut = tree.UniversalTime
+
+            c = Food(ut, ut + 6.*MyTime.OneHour, tree.BWZCarbInput)
+            c.BWZInsulinSensitivity = tree.BWZInsulinSensitivity
+            c.BWZCarbRatio = tree.BWZCarbRatio
+            c.UserInputCarbSensitivity = 2.
 
             # starting on March 25, 2015:
             if tree.UniversalTime > MyTime.TimeFromString('03/25/15 10:00:00') :
                 add_time = (tree.BWZCarbInput % 5)
                 #print 'Grading based on %5.',
                 #print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
-                c.Ta = 2. + add_time
+                c.UserInputCarbSensitivity = 2. + add_time
 
             containers.append(c)
 
@@ -668,7 +664,7 @@ def ComparePredictionToReality(prediction,reality) :
     return h
 
 #------------------------------------------------------------------
-def GetDeltaBGversusTimePlot(the_type,containers,week,day) :
+def GetDeltaBGversusTimePlot(the_type,containers,settings,week,day) :
     #
     # Plot the deltaBG per hour. Because it is per hour, and plotted versus hour, the integral
     # is the total dose.
@@ -687,14 +683,14 @@ def GetDeltaBGversusTimePlot(the_type,containers,week,day) :
         for c in containers :
             if the_time < c.iov_0 :
                 continue
-            if c.C and 'food' in the_type :
-                h.AddBinContent(i+1,c.getBGImpactDerivPerHour(the_time))
-            if c.I0 and 'insulin' in the_type :
-                h.AddBinContent(i+1,c.getBGImpactDerivPerHour(the_time))
+            if c.IsFood() and 'food' in the_type :
+                h.AddBinContent(i+1,c.getBGEffectDerivPerHour(the_time,settings))
+            if c.IsBolus() and 'insulin' in the_type :
+                h.AddBinContent(i+1,c.getBGEffectDerivPerHour(the_time,settings))
     return h
 
 #------------------------------------------------------------------
-def PredictionPlots(containers,week,day) :
+def PredictionPlots(containers,settings,week,day) :
     # NEED TO FIX RIC STUFF!
     #
     # The standard prediction plot.
@@ -740,7 +736,7 @@ def PredictionPlots(containers,week,day) :
         #
         def findFirstBG(conts) :
             for c in conts :
-                if c.type == 'First BG' :
+                if c.firstBG :
                     return c
             return None
 
@@ -750,11 +746,11 @@ def PredictionPlots(containers,week,day) :
                 continue
 
             # Special treatment for the first bin of the day:
-            if (i==0) and (c.I0 or c.C) :
+            if (i==0) and (c.IsFood() or c.IsBolus()) :
 
                 # Find the first BG
                 first_bg_time = findFirstBG(containers).iov_0
-                integral = c.getIntegral(the_time) - c.getIntegral(first_bg_time)
+                integral = c.getIntegral(the_time,settings) - c.getIntegral(first_bg_time,settings)
                 bg_estimates[-1] += integral
                 continue
 
@@ -763,13 +759,13 @@ def PredictionPlots(containers,week,day) :
                 continue
 
             # For the typical bin in the day-plot:
-            if c.I0 or c.C :
-                impactInTimeInterval = c.getBGImpactDerivTimesInterval(the_time,hours_per_step)
+            if c.IsBolus() or c.IsFood() :
+                impactInTimeInterval = c.getBGEffectDerivPerHourTimesInterval(the_time,hours_per_step,settings)
                 bg_estimates[-1] += impactInTimeInterval
-                max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.bgImpactRemaining(the_time)))
+                max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.BGEffectRemaining(the_time,settings)))
 
             # If there was a new reading, we reset the prediction (with the caveats below)
-            if c.const_BG and not (c.iov_0 in considered_for_bgReset) :
+            if c.IsMeasurement() and not (c.iov_0 in considered_for_bgReset) :
 
                 # We should only consider resetting one time!
                 considered_for_bgReset.append(c.iov_0)
