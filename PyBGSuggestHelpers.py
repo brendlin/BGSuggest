@@ -736,7 +736,7 @@ def PredictionPlots(containers,settings,week,day) :
         #
         def findFirstBG(conts) :
             for c in conts :
-                if c.firstBG :
+                if c.IsMeasurement() and c.firstBG :
                     return c
             return None
 

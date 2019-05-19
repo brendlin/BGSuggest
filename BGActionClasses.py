@@ -14,22 +14,29 @@ def InsulinActionCurveDerivative(time_hr,Ta) :
     return result
 
 #------------------------------------------------------------------
-class BGActionBase :
+class BGEventBase :
     
     def __init__(self,iov_0,iov_1) :
         self.iov_0 = iov_0 # ut
         self.iov_1 = iov_1 # ut
-        self.firstBG = False
         return
 
+    # Helper functions for figuring out the derived class:
     def IsMeasurement(self) :
-        return False
+        return self.__class__.__name__ == 'BGMeasurement'
 
     def IsBolus(self) :
-        return False
+        return self.__class__.__name__ == 'InsulinBolus'
 
     def IsFood(self) :
-        return False
+        return self.__class__.__name__ == 'Food'
+
+#------------------------------------------------------------------
+class BGActionBase(BGEventBase) :
+
+    def __init__(self,iov_0,iov_1) :
+        BGEventBase.__init__(self,iov_0,iov_1)
+        return
 
     def getIntegralBase(self,time,settings,whichTa) :
         # whichTa is a string (either 'getInsulinTa' or 'getFoodTa')
@@ -73,16 +80,14 @@ class BGActionBase :
 
 
 #------------------------------------------------------------------
-class BGMeasurement(BGActionBase) :
+class BGMeasurement(BGEventBase) :
     #
     # BG Reading
     #
     def __init__(self,iov_0,iov_1,const_BG) :
-        BGActionBase.__init__(self,iov_0,iov_1)
+        BGEventBase.__init__(self,iov_0,iov_1)
         self.const_BG = const_BG # real BG reading
-
-    def IsMeasurement(self) :
-        return True
+        self.firstBG = False
 
 #------------------------------------------------------------------
 class InsulinBolus(BGActionBase) :
@@ -99,9 +104,6 @@ class InsulinBolus(BGActionBase) :
         self.BWZActiveInsulin      = 0
         self.BWZBGInput            = 0
         self.BWZCarbRatio          = 0
-
-    def IsBolus(self) :
-        return True
 
     # This used to be called getEffectiveSensitivity, but that name is misleading for food.
     def getMagnitudeOfBGEffect(self,settings) :
@@ -139,9 +141,6 @@ class Food(BGActionBase) :
     def __init__(self,iov_0,iov_1,food) :
         BGActionBase.__init__(self,iov_0,iov_1)
         self.food = food
-
-    def IsFood(self) :
-        return True
 
     def getMagnitudeOfBGEffect(self,settings) :
         return settings.getFoodSensitivity(self.iov_0) * self.food
