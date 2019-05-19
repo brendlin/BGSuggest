@@ -1,5 +1,6 @@
 import math
 from TimeClass import MyTime
+from Settings import HistToList
 
 #------------------------------------------------------------------
 def InsulinActionCurve(time_hr,Ta) :
@@ -18,6 +19,14 @@ def InsulinActionCurveDerivative(time_hr,Ta) :
     result *= time_hr
     result *= math.pow(0.05,math.pow(time_hr/float(Ta),2))
     return result
+
+#------------------------------------------------------------------
+def findFirstBG(conts) :
+    # Quick function to find the first BG
+    for c in conts :
+        if c.IsMeasurement() and c.firstBG :
+            return c
+    return None
 
 #------------------------------------------------------------------
 class BGEventBase :
@@ -39,6 +48,9 @@ class BGEventBase :
 
     def IsBasalGlucose(self) :
         return self.__class__.__name__ == 'LiverBasalGlucose'
+
+    def IsBasalInsulin(self) :
+        return self.__class__.__name__ == 'BasalInsulin'
 
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
@@ -103,8 +115,8 @@ class BGMeasurement(BGEventBase) :
 #------------------------------------------------------------------
 class InsulinBolus(BGActionBase) :
 
-    def __init__(self,iov_0,iov_1,insulin) :
-        BGActionBase.__init__(self,iov_0,iov_1)
+    def __init__(self,time_ut,insulin) :
+        BGActionBase.__init__(self,time_ut,time_ut + 6.*MyTime.OneHour)
         self.insulin = insulin
         self.UserInputCarbSensitivity = 2
         self.BWZMatchedDelivered = True
@@ -166,7 +178,7 @@ class Food(BGActionBase) :
 #------------------------------------------------------------------
 class LiverBasalGlucose(BGEventBase) :
     # This one is a bit special, since its effect is driven entirely
-    # by the setting LiverHourlyGlucose.
+    # by the setting LiverHourlyGlucose, and it's a PARAMETER OF INTEREST.
     # - It has an "infinite" (or undefined) magnitude
     # - It has no defined start time, so its integral can only be defined between two moments
 
@@ -181,10 +193,10 @@ class LiverBasalGlucose(BGEventBase) :
         # consider all overlapping bins
         for i in range(settings.getBin(time_start),settings.getBin(time_end)+1) :
 
-            # For each bin, find the valid time interval
+            # For each bin, find the valid time interval (in hours)
             # This should ensure that the final bin is treated correctly.
-            low_edge = max(time_start,binLowEdge)
-            up_edge  = min(time_end  ,time_end  )
+            low_edge = max(MyTime.GetTimeOfDay(time_start),i/2.)
+            up_edge  = min(MyTime.GetTimeOfDay(time_end)  ,(i+1)/2.)
 
             delta_time = up_edge - low_edge
 
@@ -193,12 +205,56 @@ class LiverBasalGlucose(BGEventBase) :
 
         return sum
 
-    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr) :
+    def BGEffectRemaining(self,the_time,settings) :
+        return 0
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr,settings) :
 
         # Yeah this is really just the integral.
-        return self.getIntegral(time_start,time_start + delta_hr*MyTime.OneHour)
+        return self.getIntegral(time_start,time_start + delta_hr*MyTime.OneHour,settings)
 
     def getBGEffectDerivPerHour(self,time_ut,settings) :
 
         # just a wrapper for the true user setting
         return settings.getLiverHourlyGlucose(time_ut)
+
+#------------------------------------------------------------------
+class BasalInsulin(BGEventBase) :
+    # This is driven by the basal settings, but it is NOT a parameter of interest, it is a known
+    # quantity. But it has some similarities to LiverBasalGlucose:
+    # - It has an "infinite" (or undefined) magnitude
+    # - It has no defined start time, so its integral can only be defined between two moments
+
+    def getBin(self,time_ut) :
+        # From 4am ... and assuming 48 bins
+        return int(2*MyTime.GetTimeOfDay(time_ut))
+
+    def __init__(self,iov_0,iov_1,h_basal) :
+        BGEventBase.__init__(self,iov_0,iov_1)
+        self.BasalRates = [0]*48
+        HistToList(h_basal,self.BasalRates)
+
+        self.basalBoluses = []
+        time_ut = MyTime.RoundDownToTheHour(iov_0)
+        time_step_hr = 0.2
+
+        while time_ut < iov_1 :
+            bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)
+            minibolus = InsulinBolus(time_ut,bolus_val)
+            self.basalBoluses.append(minibolus)
+
+            time_ut += time_step_hr*MyTime.OneHour
+
+        return
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr,settings) :
+        return sum(c.getBGEffectDerivPerHourTimesInterval(time_start,delta_hr,settings) for c in self.basalBoluses)
+
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+        return sum(c.getBGEffectDerivPerHour(time_ut,settings) for c in self.basalBoluses)
+
+    def getIntegral(self,time_start,time_end,settings) :
+        return sum(c.getIntegral(time_ut,time_start,time_end,settings) for c in self.basalBoluses)
+
+    def BGEffectRemaining(self,the_time,settings) :
+        return 0

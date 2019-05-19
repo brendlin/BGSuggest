@@ -42,13 +42,18 @@ class TimeClass :
         return time.localtime(l-self.OneHour*4).tm_hour
 
     def GetTimeOfDay(self,l) :
-        # Starting from 4am
+        # In hours, Starting from 4am
         l = l-self.OneHour*4.
         return time.localtime(l).tm_hour + time.localtime(l).tm_min/60.
 
     def GetTimeOfDayFromMidnight(self,l) :
-        # Starting from 4am
+        # In hours, Starting from Midnight
         return time.localtime(l).tm_hour + time.localtime(l).tm_min/60.
+
+    def RoundDownToTheHour(self,l) :
+        # Round down to nearest hour
+        l = long(l)
+        return l - self.OneMinute*time.localtime(l).tm_min - self.OneSecond*time.localtime(l).tm_sec
 
     def TimeFromString(self,s) :
         # universal

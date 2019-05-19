@@ -2,7 +2,7 @@ from array import array
 import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
-from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose
+from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose,BasalInsulin,findFirstBG
 
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
@@ -293,7 +293,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     def MakeErrorBandHistogram(name,min,max,color) :
         average = (min + max) / float(2)
         difference = (min - max)
-        band = ROOT.TH1F(name,'skipme',1,-0.5,24.5)
+        band = ROOT.TH1F(name,'skipme',1,0,24)
         band.SetBinContent(1,average)
         band.SetBinError(1,difference/float(2))
         band.SetFillColor(color)
@@ -319,6 +319,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),bg_data,'p')
 
     containers = GetDayContainers(tree,week,day)
+    containers.append(LiverBasalGlucose())
 
     #
     # Get settings - insulin sensitivity, RIC, Basal
@@ -335,6 +336,12 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     duration_histograms = SettingsHistograms('Duration')
     duration_histograms.ReadFromFile(rootfile)
 
+    # basal
+    basal = BasalInsulin(findFirstBG(containers).iov_0 - 6*MyTime.OneHour,
+                         MyTime.WeekDayHourToUniversal(week,day,24),
+                         basal_histograms.latestHistogram())
+    containers.append(basal)
+
     #
     # Make BolusWizard UserProfile
     #
@@ -343,9 +350,6 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                                             ric_histograms.latestHistogram())
     bwzProfile.AddHourlyGlucoseFromHistogram(basal_histograms.latestHistogram())
     bwzProfile.AddDurationFromHistogram(duration_histograms.latestHistogram())
-
-    # Add basal glucose to containers
-    containers.append(LiverBasalGlucose())
 
     # Make the prediction plot (including error bars)
     prediction_plot = PredictionPlots(containers,bwzProfile,week,day)
@@ -360,15 +364,15 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
-    insulin_plot = GetDeltaBGversusTimePlot('Bolus',containers,['InsulinBolus'],bwzProfile,week,day,doStack=True)
+    insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,['InsulinBolus','BasalInsulin'],bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['Food','InsulinBolus'],bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food'],bwzProfile,week,day)
     both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
-    #plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
+    plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
     a = ROOT.TLine()
     a.DrawLine(-0.5,0,24.5,0)
@@ -587,7 +591,7 @@ def GetDayContainers(tree,week,day) :
         if tree.BolusVolumeDelivered > 0 :
 
             ut = tree.UniversalTime
-            c = InsulinBolus(ut, ut + 6.*MyTime.OneHour, tree.BolusVolumeDelivered)
+            c = InsulinBolus(ut, tree.BolusVolumeDelivered)
 
             # Matching BWZEstimate from delivered insulin
             IsBWZEstimate = False
@@ -717,6 +721,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
             color =  {'InsulinBolus':ROOT.kGreen+1,
                       'Food':ROOT.kRed+1,
                       'LiverBasalGlucose':ROOT.kOrange,
+                      'BasalInsulin':ROOT.kAzure-2,
                       }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
@@ -781,15 +786,6 @@ def PredictionPlots(containers,settings,week,day) :
         # We'll keep track of whether large boluses are in progress in this time-step
         max_bgEffectRemaining = 0
 
-        #
-        # Quick function to find the first BG
-        #
-        def findFirstBG(conts) :
-            for c in conts :
-                if c.IsMeasurement() and c.firstBG :
-                    return c
-            return None
-
         for c in containers :
 
             if the_time < c.iov_0 :
@@ -810,7 +806,7 @@ def PredictionPlots(containers,settings,week,day) :
                 continue
 
             # For the typical bin in the day-plot:
-            if c.IsBolus() or c.IsFood() :
+            if c.IsBolus() or c.IsFood() or c.IsBasalGlucose() or c.IsBasalInsulin() :
                 impactInTimeInterval = c.getBGEffectDerivPerHourTimesInterval(the_time,hours_per_step,settings)
                 bg_estimates[-1] += impactInTimeInterval
                 max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.BGEffectRemaining(the_time,settings)))
