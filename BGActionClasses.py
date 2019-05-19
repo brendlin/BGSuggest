@@ -31,6 +31,9 @@ class BGEventBase :
     def IsFood(self) :
         return self.__class__.__name__ == 'Food'
 
+    def IsFoodOrBolus(self) :
+        return self.__class__.__name__ in ['Food','InsulinBolus']
+
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
 

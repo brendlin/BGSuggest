@@ -349,22 +349,32 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),prediction_plot,'lE3')
 
-    food_plot = GetDeltaBGversusTimePlot('food',containers,bwzProfile,week,day)
-    food_plot.SetFillStyle(3001)
-    food_plot.SetFillColor(ROOT.kRed+1)
-    food_plot.SetLineColor(ROOT.kRed+1)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),food_plot,'lhist')
+    #
+    # Make the food and insulin blobs
+    #
+    food_plot = GetDeltaBGversusTimePlot('Food',containers,bwzProfile,week,day,doStack=True)
+    GetMidPad(prediction_canvas).cd()
+    food_plot.Draw('lsame')
+    plotfunc.tobject_collector.append(food_plot)
 
-    insulin_plot = GetDeltaBGversusTimePlot('insulin',containers,bwzProfile,week,day)
-    insulin_plot.SetFillStyle(3001)
-    insulin_plot.SetFillColor(ROOT.kGreen+1)
-    insulin_plot.SetLineColor(ROOT.kGreen+1)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),insulin_plot,'lhist')
+    insulin_plot = GetDeltaBGversusTimePlot('Bolus',containers,bwzProfile,week,day,doStack=True)
+    GetMidPad(prediction_canvas).cd()
+    insulin_plot.Draw('lsame')
+    plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('insulin_food',containers,bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,bwzProfile,week,day)
     both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
+    #plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
+
+    a = ROOT.TLine()
+    a.DrawLine(-0.5,0,24.5,0)
+    plotfunc.tobject_collector.append(a)
+    GetMidPad(prediction_canvas).RedrawAxis()
+
+    #
+    # Make the residual plots
+    #
 
     # Residual plot for sensor data
     if sensor_data.GetN() > 1 :
@@ -673,30 +683,53 @@ def ComparePredictionToReality(prediction,reality) :
     return h
 
 #------------------------------------------------------------------
-def GetDeltaBGversusTimePlot(the_type,containers,settings,week,day) :
+def GetDeltaBGversusTimePlot(the_type,containers,settings,week,day,doStack=False) :
     #
     # Plot the deltaBG per hour. Because it is per hour, and plotted versus hour, the integral
     # is the total dose.
+    # the_type needs to be 'Food','Bolus', or 'FoodOrBolus'
     #
-
     import math
-    import ROOT
 
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
     hours_per_step = 0.1
+    hist_args = (int(24./hours_per_step),-0.5,24.5)
+    tag = '%d_%d_%s'%(week,day,the_type)
 
-    h = ROOT.TH1F('%d_%d_%s'%(week,day,the_type),'asdf',int(24./hours_per_step),-0.5,24.5)
+    c_hists = []
+    toggleLightDark = True
 
-    for i in range(int(24./hours_per_step)+1) :
-        the_time = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour) # universal
-        for c in containers :
-            if the_time < c.iov_0 :
-                continue
-            if c.IsFood() and 'food' in the_type :
-                h.AddBinContent(i+1,c.getBGEffectDerivPerHour(the_time,settings))
-            if c.IsBolus() and 'insulin' in the_type :
-                h.AddBinContent(i+1,c.getBGEffectDerivPerHour(the_time,settings))
-    return h
+    for ci,c in enumerate(containers) :
+
+        # check c.IsBolus(), c.IsFood() or c.IsFoodOrBolus()
+        if not getattr(c,'Is'+the_type)() :
+            continue
+
+        c_hists.append(ROOT.TH1F('%s_%d'%(tag,ci),'asdf',*hist_args))
+
+        color = {'Bolus':ROOT.kGreen+1,
+                 'Food':ROOT.kRed+1,
+                 'FoodOrBolus':ROOT.kBlack}.get(the_type)
+
+        c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
+        toggleLightDark = not toggleLightDark
+        c_hists[-1].SetLineColorAlpha(color+1,1)
+        c_hists[-1].SetLineWidth(1)
+
+        for i in range(int(24./hours_per_step)+1) :
+
+            time_ut = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour)
+            c_hists[-1].SetBinContent(i+1,c.getBGEffectDerivPerHour(time_ut,settings))
+
+    if doStack :
+        h_ret = ROOT.THStack('stack_%s'%(tag),'stack')
+    else :
+        h_ret = ROOT.TH1F('%s'%(tag),'asdf',*hist_args)
+
+    for h in reversed(c_hists) :
+        h_ret.Add(h)
+
+    return h_ret
 
 #------------------------------------------------------------------
 def PredictionPlots(containers,settings,week,day) :
