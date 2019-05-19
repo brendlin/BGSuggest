@@ -378,32 +378,41 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     residual_plot_2.SetMarkerColor(ROOT.kRed+1)
     plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot_2,'p')
 
-    ColorHistsAccordingToDay(prediction_canvas)
     for i in prediction_canvas.GetListOfPrimitives() :
         if 'SensorGlucose' in i.GetName() :
             i.SetMarkerSize(0.5)
             i.SetLineWidth(2)
+
     plotfunc.FormatCanvasAxes(prediction_canvas)
     taxisfunc.SetYaxisRanges(prediction_canvas,0.001,350)
     plotfunc.SetAxisLabels(prediction_canvas,'hr','BG (mg/dL)')
 
-    taxisfunc.SetYaxisRanges(plotfunc.GetBotPad(prediction_canvas),-199,199)
-    taxisfunc.SetXaxisRanges(plotfunc.GetBotPad(prediction_canvas),-0.5,24.5)
+    # Format bottom pad (data - prediction)
+    bot_pad = plotfunc.GetBotPad(prediction_canvas)
+    taxisfunc.SetYaxisRanges(bot_pad,-199,199)
+    taxisfunc.SetXaxisRanges(bot_pad,-0.5,24.5)
+    xaxis = bot_pad.GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis()
+    xaxis.SetLabelOffset(.04)
+    xaxis.SetTitleOffset(2.8)
+    plotfunc.SetAxisLabels(bot_pad,'hr','data^{ }#minus^{ }pred')
 
-    taxisfunc.SetYaxisRanges(GetMidPad(prediction_canvas),-199,199)
-    taxisfunc.SetXaxisRanges(GetMidPad(prediction_canvas),-0.5,24.5)
-    taxisfunc.SetYaxisNdivisions(GetMidPad(prediction_canvas),5,5,0)
-    GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis().SetLabelOffset(5)
-    GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetYaxis().SetTitle('#Delta^{}BG^{ }/^{ }hr')
-    plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetLabelOffset(.04)
-    plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis().SetTitleOffset(2.8)
-    plotfunc.GetBotPad(prediction_canvas).GetPrimitive('pad_bot_HistWithTimeAxis').GetYaxis().SetTitle('data^{ }#minus^{ }pred')
+    # Format middle pad (the lumps)
+    mid_pad = GetMidPad(prediction_canvas)
+    taxisfunc.SetYaxisRanges(mid_pad,-199,199)
+    taxisfunc.SetXaxisRanges(mid_pad,-0.5,24.5)
+    taxisfunc.SetYaxisNdivisions(mid_pad,5,5,0)
+    xaxis = GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis()
+    xaxis.SetLabelOffset(5)
+    plotfunc.SetAxisLabels(mid_pad,'','#Delta^{}BG^{ }/^{ }hr')
 
-    plotfunc.FormatCanvasAxes(prediction_canvas.GetPrimitive('pad_sub'))
-    taxisfunc.SetYaxisRanges(prediction_canvas.GetPrimitive('pad_sub'),0.001,90)
-    plotfunc.SetAxisLabels(prediction_canvas.GetPrimitive('pad_sub'),'','Settings')
-    prediction_canvas.GetPrimitive('pad_sub').GetPrimitive('pad_sub_HistWithTimeAxis').GetXaxis().SetLabelOffset(10)
-    prediction_canvas.GetPrimitive('pad_sub').GetPrimitive('pad_sub_HistWithTimeAxis').GetYaxis().SetNdivisions(5,2,0)
+    # Format sub-pad (the settings)
+    sub_pad = prediction_canvas.GetPrimitive('pad_sub')
+    plotfunc.FormatCanvasAxes(sub_pad)
+    taxisfunc.SetYaxisRanges(sub_pad,0.001,90)
+    plotfunc.SetAxisLabels(sub_pad,'','Settings')
+    xaxis = sub_pad.GetPrimitive('pad_sub_HistWithTimeAxis').GetXaxis()
+    xaxis.SetLabelOffset(10)
+    taxisfunc.SetYaxisNdivisions(sub_pad,5,2,0)
 
     #
     # Draw the date.
