@@ -292,7 +292,7 @@ class BasalInsulin(BGEventBase) :
         return sum(c.getBGEffectDerivPerHour(time_ut,settings) for c in self.basalBoluses)
 
     def getIntegral(self,time_start,time_end,settings) :
-        return sum(c.getIntegral(time_ut,time_start,time_end,settings) for c in self.basalBoluses)
+        return sum(c.getIntegral(time_start,time_end,settings) for c in self.basalBoluses)
 
     def BGEffectRemaining(self,the_time,settings) :
         return 0

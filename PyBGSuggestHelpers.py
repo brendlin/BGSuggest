@@ -793,7 +793,7 @@ def PredictionPlots(containers,settings,week,day) :
                 continue
 
             # Special treatment for the first bin of the day:
-            if (i==0) and (c.IsFood() or c.IsBolus()) :
+            if (i==0) and (c.IsFood() or c.IsBolus() or c.IsBasalGlucose() or c.IsBasalInsulin()) :
 
                 # Find the first BG
                 first_bg_time = findFirstBG(containers).iov_0
