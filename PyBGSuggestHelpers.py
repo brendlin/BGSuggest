@@ -348,7 +348,8 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     bwzProfile = TrueUserProfile()
     bwzProfile.AddSensitivityFromHistograms(sensi_histograms.latestHistogram(),
                                             ric_histograms.latestHistogram())
-    bwzProfile.AddHourlyGlucoseFromHistogram(basal_histograms.latestHistogram())
+    bwzProfile.AddHourlyGlucoseFromHistogram(basal_histograms.latestHistogram(),
+                                             duration_histograms.latestHistogram())
     bwzProfile.AddDurationFromHistogram(duration_histograms.latestHistogram())
 
     # Make the prediction plot (including error bars)

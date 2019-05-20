@@ -164,17 +164,19 @@ class TrueUserProfile :
         #
         # Independent parameters:
         #
-        self.InsulinSensitivity = [0]*48
-        self.FoodSensitivity = [0]*48 # I think I prefer this instead of RCI * Sensitivity
-        self.FoodTa = [2.]*48
-        self.InsulinTa = [4.]*48
-        self.LiverHourlyGlucose = [0]*48 # There is going to be a timing offset issue here.
+        self.binWidth_hr = 0.5
+        self.nBins = int( 24 / self.binWidth_hr )
+        self.InsulinSensitivity = [0]*self.nBins
+        self.FoodSensitivity = [0]*self.nBins # I think I prefer this instead of RCI * Sensitivity
+        self.FoodTa = [2.]*self.nBins
+        self.InsulinTa = [4.]*self.nBins
+        self.LiverHourlyGlucose = [0]*self.nBins # There is going to be a timing offset issue here.
 
         return
 
     def getBin(self,time_ut) :
         # From 4am ... and assuming 48 bins
-        return int(2*MyTime.GetTimeOfDay(time_ut))
+        return int(MyTime.GetTimeOfDay(time_ut)/self.binWidth_hr)
 
     def getInsulinSensitivity(self,time_ut) :
         return self.InsulinSensitivity[self.getBin(time_ut)]
@@ -196,7 +198,7 @@ class TrueUserProfile :
         HistToList(h_insulin,self.InsulinSensitivity)
 
         # We want to save the food sensitivity, not the RIC. Food sensitivity is the independent var.
-        tmp_ric = [0]*48
+        tmp_ric = [0]*self.nBins
         HistToList(h_ric,tmp_ric)
         for i in range(len(tmp_ric)) :
             self.FoodSensitivity[i] = self.InsulinSensitivity[i] / float(tmp_ric[i])
@@ -207,15 +209,21 @@ class TrueUserProfile :
 
         return
 
-    def AddHourlyGlucoseFromHistogram(self,h_basal) :
+    def AddHourlyGlucoseFromHistogram(self,h_basal,h_duration) :
 
-        tmp_basal = [0]*48
+        tmp_basal = [0]*self.nBins
         HistToList(h_basal,tmp_basal)
+        tmp_duration = [0]*self.nBins
+        HistToList(h_duration,tmp_duration)
 
         # assume that the user was trying to match the glucose from 2 hours in the future.
         for i in range(len(tmp_basal)) :
             # E.g. 4*30 minutes earlier, which sometimes goes to the other end of the histo.
-            self.LiverHourlyGlucose[(i+4)%48] = - tmp_basal[i] * self.InsulinSensitivity[i]
+
+            peak_point = tmp_duration[i]/2. # Assume the peak of the basal is Ta/2.
+            offset = int( peak_point / float(self.binWidth_hr))
+
+            self.LiverHourlyGlucose[(i+offset)%self.nBins] = - tmp_basal[i] * self.InsulinSensitivity[i]
 
         return
 
