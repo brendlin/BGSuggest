@@ -60,7 +60,7 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
             i_st = 4 if linevector[33] == 'ChangeCarbRatio' else 3
 
             start_time_milliseconds = int(linevector[34].split()[i_st].replace('START_TIME=',''))
-            start_time = start_time_milliseconds / MyTime.MillisecondsInAnHour
+            start_time = start_time_milliseconds / float(MyTime.MillisecondsInAnHour)
             timestamp = linevector[3]
 
             if linevector[33] == 'ChangeBasalProfile' :

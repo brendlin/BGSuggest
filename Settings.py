@@ -89,10 +89,9 @@ class SettingsHistograms :
         hist = self.getOrMakeHistogram(histo_tag)
 
         # hour -> half hour increments
-        timeOfDay_midnight = int(2*int(timeOfDay_midnight))
+        timeOfDay_midnight = int(2*timeOfDay_midnight)
 
         # half hour increments, 12am to 4am start time conversion:
-        timeOfDay_midnight = int(timeOfDay_midnight)
         timeOfDay = timeOfDay_midnight - 8 
 
         # Roll pre-4am to the end of the histogram.
@@ -178,6 +177,10 @@ class TrueUserProfile :
         # From 4am ... and assuming 48 bins
         return int(MyTime.GetTimeOfDay(time_ut)/self.binWidth_hr)
 
+    def getBinFromHourOfDayFromMidnight(self,time_hr) :
+        # From midnight ... and assuming 48 bins
+        return int( ((time_hr-4)%24) /self.binWidth_hr)
+
     def getInsulinSensitivity(self,time_ut) :
         return self.InsulinSensitivity[self.getBin(time_ut)]
 
@@ -192,6 +195,10 @@ class TrueUserProfile :
 
     def getLiverHourlyGlucose(self,time_ut) :
         return self.LiverHourlyGlucose[self.getBin(time_ut)]
+
+    def SetInsulinSensitivity(self,time_hr,val) :
+        # specify the time starting from midnight!
+        self.InsulinSensitivity[self.getBinFromHourOfDayFromMidnight(time_hr)] = val
 
     def AddSensitivityFromHistograms(self,h_insulin,h_ric) :
 

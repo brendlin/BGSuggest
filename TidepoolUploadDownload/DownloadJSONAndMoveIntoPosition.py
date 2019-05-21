@@ -36,7 +36,7 @@ def DownloadJSONAndMoveIntoPosition(options,args) :
     start_outfilestr = start.strftime('_%y%m%d')
     end_outfilestr   = end.strftime('_%y%m%d')
     if options.week == 0 :
-        start_outfilestr = ''
+        start_outfilestr = '_999999'
         end_outfilestr = '_thisWeek'
     outfilename = '../data/Tidepool_Export%s%s.json'%(start_outfilestr,end_outfilestr)
     print 'Name : %s'%(outfilename)

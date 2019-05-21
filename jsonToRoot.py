@@ -97,16 +97,16 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                 duration_histograms.AddSettingToHistogram(timestamp,0,duration)
 
             for entries in line['basalSchedules']['standard'] :
-                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                start_time = entries['start'] / float(MyTime.MillisecondsInAnHour)
                 basal_histograms.AddSettingToHistogram(timestamp,start_time,entries['rate'])
 
             for entries in line['insulinSensitivity'] :
-                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                start_time = entries['start'] / float(MyTime.MillisecondsInAnHour)
                 amount = ToMgDL(entries['amount'],cfactor)
                 sensi_histograms.AddSettingToHistogram(timestamp,start_time,amount)
 
             for entries in line['carbRatio'] :
-                start_time = entries['start'] / MyTime.MillisecondsInAnHour
+                start_time = entries['start'] / float(MyTime.MillisecondsInAnHour)
                 ric_histograms.AddSettingToHistogram(timestamp,start_time,entries['amount'])
 
         #
