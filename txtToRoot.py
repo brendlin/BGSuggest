@@ -171,8 +171,10 @@ def ProcessFileCSV(inputfilename,treeDetailed,sDetailed,
                    'PrimeVolumeDelivered','Suspend','Rewind','BWZEstimate','BWZTargetHighBG',
                    'BWZTargetLowBG','BWZCarbRatio','BWZInsulinSensitivity','BWZCarbInput',
                    'BWZBGInput','BWZCorrectionEstimate','BWZFoodEstimate','BWZActiveInsulin',
-                   'Alarm','SensorCalibrationBG','SensorGlucose','ISIGValue','DailyInsulinTotal',
-                   'RawType','RawValues','RawID','RawUploadID','RawSeqNum','RawDeviceType'] :
+#                    'Alarm',
+                   'SensorCalibrationBG','SensorGlucose','ISIGValue','DailyInsulinTotal',
+#                    'RawType','RawValues','RawID','RawUploadID','RawSeqNum','RawDeviceType'
+                   ] :
             setattr(sDetailed,br, branches[br].getFormattedValueFromVector(linevector) )
 
         treeDetailed.Fill()

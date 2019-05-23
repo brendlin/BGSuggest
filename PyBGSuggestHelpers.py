@@ -3,6 +3,8 @@ import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
 from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose,BasalInsulin,findFirstBG
+from BGActionClasses import TempBasal,Suspend
+import copy
 
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
@@ -302,7 +304,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
 
     # Green and yellow target zones
     bandYellow = MakeErrorBandHistogram('yellow',80,180,ROOT.kOrange)
-    bandGreen  = MakeErrorBandHistogram('yellow',100,150,ROOT.kGreen)
+    bandGreen  = MakeErrorBandHistogram('green',100,150,ROOT.kGreen)
     plotfunc.AddHistogram(prediction_canvas,bandYellow,'E2')
     plotfunc.AddHistogram(prediction_canvas,bandGreen,'E2')
     plotfunc.GetTopPad(prediction_canvas).RedrawAxis()
@@ -339,8 +341,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     # basal
     basal = BasalInsulin(findFirstBG(containers).iov_0 - 6*MyTime.OneHour,
                          MyTime.WeekDayHourToUniversal(week,day,24),
-                         basal_histograms.latestHistogram())
+                         basal_histograms.latestHistogram(),containers)
     containers.append(basal)
+
+    # basal, normal schedule
+    basal_schedule = BasalInsulin(findFirstBG(containers).iov_0 - 6*MyTime.OneHour,
+                                  MyTime.WeekDayHourToUniversal(week,day,24),
+                                  basal_histograms.latestHistogram())
 
     #
     # Make BolusWizard UserProfile
@@ -358,6 +365,17 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),prediction_plot,'lE3')
 
     #
+    # Experimental profile: Make a deep copy of original profile
+    #
+    newProfile = copy.deepcopy(bwzProfile)
+    for i in [6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11] :
+        newProfile.SetInsulinSensitivity(i,-65)
+    experimental_plot = PredictionPlots(containers,newProfile,week,day)
+    experimental_plot.SetLineColor(ROOT.kRed)
+    if False :
+        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),experimental_plot,'lE3')
+
+    #
     # Make the food and insulin blobs
     #
     food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,['Food','LiverBasalGlucose'],bwzProfile,week,day,doStack=True)
@@ -371,9 +389,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.tobject_collector.append(insulin_plot)
 
     both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food'],bwzProfile,week,day)
-    both_plot.SetFillStyle(3001)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
+
+    basal_schedule_plot = GetDeltaBGversusTimePlot('ScheduledBasal',[basal_schedule],['BasalInsulin'],bwzProfile,week,day)
+    basal_schedule_plot.SetLineStyle(7)
+    basal_schedule_plot.SetLineWidth(2)
+    plotfunc.AddHistogram(GetMidPad(prediction_canvas),basal_schedule_plot,'lhist')
 
     a = ROOT.TLine()
     a.DrawLine(-0.5,0,24.5,0)
@@ -485,6 +507,9 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     print '\nBWZ profile:'
     bwzProfile.Print()
 
+    print '\nNew profile:'
+    newProfile.Print()
+
     return prediction_canvas
 
 #------------------------------------------------------------------
@@ -512,6 +537,25 @@ def FindTimeAndBGOfPreviousBG(tree,i) :
 
     return UT_next,bg_read
 
+#------------------------------------------------------------------
+def FindSuspendEnd(tree,i) :
+    found_end = False
+
+    for j in range(i,i+30) :
+        tree.GetEntry(j)
+        if tree.SuspendEnd > 0 :
+            UT_next = tree.UniversalTime
+            found_end = True
+            break
+
+    if not found_end :
+        print 'Error - could not find end of the Suspend!'
+        import sys; sys.exit();
+
+    # Reset the tree to the entry we were at:
+    tree.GetEntry(i)
+
+    return UT_next
 
 #------------------------------------------------------------------
 def GetDayContainers(tree,week,day) :
@@ -646,6 +690,15 @@ def GetDayContainers(tree,week,day) :
 
             containers.append(c)
 
+        #
+        # Suspend
+        #
+        if tree.SuspendStart :
+
+            ut = tree.UniversalTime
+            c = Suspend(ut,FindSuspendEnd(tree,i))
+            containers.append(c)
+
     #
     # Now make the prediction plots (moved elsewhere)
     #
@@ -722,7 +775,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
             color =  {'InsulinBolus':ROOT.kGreen+1,
                       'Food':ROOT.kRed+1,
                       'LiverBasalGlucose':ROOT.kOrange,
-                      'BasalInsulin':ROOT.kAzure-2,
+                      'BasalInsulin':ROOT.kAzure-9,
                       }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light

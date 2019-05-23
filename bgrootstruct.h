@@ -19,8 +19,8 @@ struct bgrootstruct{
   Float_t     ProgrammedBolusDuration; // in hours
   std::string PrimeType              ;
   Float_t     PrimeVolumeDelivered   ;
-  std::string Suspend                ;
-  Int_t       Rewind                 ;
+  Bool_t      SuspendStart           ;
+  Bool_t      Rewind                 ;
   Float_t     BWZEstimate            ;
   Int_t       BWZTargetHighBG        ;
   Int_t       BWZTargetLowBG         ;
@@ -31,17 +31,17 @@ struct bgrootstruct{
   Float_t     BWZCorrectionEstimate  ;
   Float_t     BWZFoodEstimate        ;
   Float_t     BWZActiveInsulin       ;
-  std::string Alarm                  ;
+/*   std::string Alarm                  ; */
   Int_t       SensorCalibrationBG    ;
   Int_t       SensorGlucose          ;   
   Float_t     ISIGValue              ;
   Float_t     DailyInsulinTotal      ;
-  std::string RawType                ;
-  std::string RawValues              ;
-  Long64_t    RawID                  ;
-  Long64_t    RawUploadID            ;
-  Long64_t    RawSeqNum              ;
-  std::string RawDeviceType          ;
+/*   std::string RawType                ; */
+/*   std::string RawValues              ; */
+/*   Long64_t    RawID                  ; */
+/*   Long64_t    RawUploadID            ; */
+/*   Long64_t    RawSeqNum              ; */
+/*   std::string RawDeviceType          ; */
   //
   // Derived variables
   //
@@ -54,5 +54,6 @@ struct bgrootstruct{
   Int_t       RecentSensorGlucose    ;
   Float_t     MARD                   ;
   Float_t     SensorAgeDays          ;
+  Bool_t      SuspendEnd             ;
 };
 

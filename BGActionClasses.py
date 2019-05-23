@@ -55,6 +55,9 @@ class BGEventBase :
     def IsTempBasal(self) :
         return self.__class__.__name__ == 'TempBasal'
 
+    def IsSuspend(self) :
+        return self.__class__.__name__ == 'Suspend'
+
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
 
@@ -277,6 +280,8 @@ class BasalInsulin(BGEventBase) :
 
         self.basalBoluses = []
         time_ut = MyTime.RoundDownToTheHour(iov_0)
+
+        # Update every 6 minutes...!
         time_step_hr = 0.1
 
         while time_ut < iov_1 :
@@ -286,6 +291,13 @@ class BasalInsulin(BGEventBase) :
             # If there is a TempBasal, then modify the basalFactor
             for c in containers :
                 if not c.IsTempBasal() :
+                    continue
+                if c.iov_0 < time_ut and time_ut < c.iov_1 :
+                    basalFactor = c.basalFactor
+
+            # Now check for Suspend, which should preempt TempBasals
+            for c in containers :
+                if not c.IsSuspend() :
                     continue
                 if c.iov_0 < time_ut and time_ut < c.iov_1 :
                     basalFactor = c.basalFactor
@@ -318,3 +330,12 @@ class TempBasal(BGEventBase) :
     def __init__(self,iov_0,iov_1,basalFactor) :
         BGEventBase.__init__(self,iov_0,iov_1)
         self.basalFactor = basalFactor
+
+#------------------------------------------------------------------
+class Suspend(TempBasal) :
+
+    # Very similar to TempBasal, except that we need a different class
+    # because Suspend takes precedence over TempBasal
+
+    def __init__(self,iov_0,iov_1) :
+        TempBasal.__init__(self,iov_0,iov_1,0)

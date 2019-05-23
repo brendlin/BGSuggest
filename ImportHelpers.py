@@ -40,7 +40,7 @@ class BRCL :
     def DefaultValue(self) :
         return {
             'I': -1,
-            'O':  0,
+            'O':  False,
             'L':  0,
             'F': -1,
             'Ftime':-1
@@ -69,7 +69,7 @@ def GetTreeBranchClassesDict() :
     branches['ProgrammedBolusDuration'] = BRCL('Ftime',13)
     branches['PrimeType'              ] = BRCL('C',14)
     branches['PrimeVolumeDelivered'   ] = BRCL('F',15)
-    branches['Suspend'                ] = BRCL('C',16)
+    branches['SuspendStart'           ] = BRCL('O',16)
     branches['Rewind'                 ] = BRCL('O',17) # 'deviceEvent' and 'reservoirChange'
     branches['BWZEstimate'            ] = BRCL('F',18) # net, probably ...
     branches['BWZTargetHighBG'        ] = BRCL('I',19) # ['bgTarget']['high']
@@ -81,17 +81,18 @@ def GetTreeBranchClassesDict() :
     branches['BWZCorrectionEstimate'  ] = BRCL('F',25) # ['recommended']['correction']
     branches['BWZFoodEstimate'        ] = BRCL('F',26) # ['recommended']['carb']
     branches['BWZActiveInsulin'       ] = BRCL('F',27) # ??? 'net' ???
-    branches['Alarm'                  ] = BRCL('C',28)
+#     branches['Alarm'                  ] = BRCL('C',28)
     branches['SensorCalibrationBG'    ] = BRCL('I',29)
     branches['SensorGlucose'          ] = BRCL('I',30)
     branches['ISIGValue'              ] = BRCL('F',31)
     branches['DailyInsulinTotal'      ] = BRCL('F',32)
-    branches['RawType'                ] = BRCL('C',33)
-    branches['RawValues'              ] = BRCL('C',34)
-    branches['RawID'                  ] = BRCL('L',35)
-    branches['RawUploadID'            ] = BRCL('L',36)
-    branches['RawSeqNum'              ] = BRCL('L',37)
-    branches['RawDeviceType'          ] = BRCL('C',38)
+#     branches['RawType'                ] = BRCL('C',33)
+#     branches['RawValues'              ] = BRCL('C',34)
+#     branches['RawID'                  ] = BRCL('L',35)
+#     branches['RawUploadID'            ] = BRCL('L',36)
+#     branches['RawSeqNum'              ] = BRCL('L',37)
+#     branches['RawDeviceType'          ] = BRCL('C',38)
+    branches["SuspendEnd"             ] = BRCL('O',99999)
     return branches
 
 # Do not worry - if you import this file multiple times, you will not create multiple instances.
@@ -124,6 +125,7 @@ class CrossDatumDataStorage :
     last_sensor_isig_age = -1
     last_sensor_isig = -1
     last_sensor_bg = -1
+    suspend_in_progress = False
 
 dataStorageInstance = CrossDatumDataStorage()
 

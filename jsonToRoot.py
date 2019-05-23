@@ -165,14 +165,27 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             if 'insulinOnBoard' in line.keys() :
                 sDetailed.BWZActiveInsulin = line['insulinOnBoard']
 
-        elif itype == 'basal' and line['deliveryType'] == 'temp':
-            sDetailed.TempBasalType = 'Percent' if line.get('percent',None) else 'Unknown'
-            if sDetailed.TempBasalType == 'Unknown' :
-                sDetailed.TempBasalAmount = round(line['rate']/float(line['suppressed']['rate']),2)
-                print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
-            else :
-                sDetailed.TempBasalAmount = round(line['percent'],2)
-            sDetailed.TempBasalDuration = line['duration'] / MyTime.MillisecondsInAnHour
+        # Temp basal
+        elif itype == 'basal' :
+            if line['deliveryType'] == 'temp':
+                sDetailed.TempBasalType = 'Percent' if line.get('percent',None) else 'Unknown'
+                if sDetailed.TempBasalType == 'Unknown' :
+                    sDetailed.TempBasalAmount = round(line['rate']/float(line['suppressed']['rate']),2)
+                    print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
+                else :
+                    sDetailed.TempBasalAmount = round(line['percent'],2)
+                sDetailed.TempBasalDuration = line['duration'] / MyTime.MillisecondsInAnHour
+
+            # Cancel a suspend-in-progress
+            if storage.suspend_in_progress == True :
+                sDetailed.SuspendEnd = True
+                storage.suspend_in_progress = False
+
+        # Suspend (start)
+        elif itype == 'deviceEvent' :
+            if 'status' in line.keys() and line['status'] == 'suspended' :
+                sDetailed.SuspendStart = True
+                storage.suspend_in_progress = True
 
         treeDetailed.Fill()
 
