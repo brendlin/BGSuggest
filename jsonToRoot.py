@@ -168,15 +168,23 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         # Temp basal
         elif itype == 'basal' :
             if line['deliveryType'] == 'temp':
+                if storage.temp_basal_in_progress :
+                    continue
                 sDetailed.TempBasalType = 'Percent' if line.get('percent',None) else 'Unknown'
                 if sDetailed.TempBasalType == 'Unknown' :
                     sDetailed.TempBasalAmount = round(line['rate']/float(line['suppressed']['rate']),2)
-                    print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
+                    #print 'Warning - need to handle unknown (not Percent). For now, setting percent to %.2f'%(sDetailed.TempBasalAmount)
                 else :
                     sDetailed.TempBasalAmount = round(line['percent'],2)
                 sDetailed.TempBasalDuration = line['duration'] / MyTime.MillisecondsInAnHour
+                storage.temp_basal_in_progress = True
 
-            # Cancel a suspend-in-progress
+            # Cancel a temp-basal-in-progress, for any non-temp basal
+            elif storage.temp_basal_in_progress == True :
+                sDetailed.TempBasalEnd = True
+                storage.temp_basal_in_progress = False
+
+            # In any case, cancel a suspend-in-progress
             if storage.suspend_in_progress == True :
                 sDetailed.SuspendEnd = True
                 storage.suspend_in_progress = False

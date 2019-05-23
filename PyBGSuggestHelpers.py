@@ -558,6 +558,26 @@ def FindSuspendEnd(tree,i) :
     return UT_next
 
 #------------------------------------------------------------------
+def FindTempBasalEnd(tree,i) :
+    found_end = False
+
+    for j in range(i,i+30) :
+        tree.GetEntry(j)
+        if tree.TempBasalEnd > 0 :
+            UT_next = tree.UniversalTime
+            found_end = True
+            break
+
+    if not found_end :
+        print 'Error - could not find end of the Temp basal!'
+        import sys; sys.exit();
+
+    # Reset the tree to the entry we were at:
+    tree.GetEntry(i)
+
+    return UT_next
+
+#------------------------------------------------------------------
 def GetDayContainers(tree,week,day) :
 
     print 'Called LoadDayEstimate'
@@ -697,6 +717,20 @@ def GetDayContainers(tree,week,day) :
 
             ut = tree.UniversalTime
             c = Suspend(ut,FindSuspendEnd(tree,i))
+            containers.append(c)
+
+        #
+        # Temp basal
+        #
+        if tree.TempBasalAmount > 0 :
+
+            ut = tree.UniversalTime
+
+            # Temp basal amount is assumed to be percent
+            ut_end = FindTempBasalEnd(tree,i)
+            print 'Temp Basal, %s - %s : %2.2f'%(MyTime.StringFromTime(ut),MyTime.StringFromTime(ut_end),tree.TempBasalAmount)
+            print
+            c = TempBasal(ut,ut_end,tree.TempBasalAmount)
             containers.append(c)
 
     #

@@ -93,6 +93,7 @@ def GetTreeBranchClassesDict() :
 #     branches['RawSeqNum'              ] = BRCL('L',37)
 #     branches['RawDeviceType'          ] = BRCL('C',38)
     branches["SuspendEnd"             ] = BRCL('O',99999)
+    branches["TempBasalEnd"           ] = BRCL('O',99999)
     return branches
 
 # Do not worry - if you import this file multiple times, you will not create multiple instances.
@@ -126,6 +127,7 @@ class CrossDatumDataStorage :
     last_sensor_isig = -1
     last_sensor_bg = -1
     suspend_in_progress = False
+    temp_basal_in_progress = False
 
 dataStorageInstance = CrossDatumDataStorage()
 

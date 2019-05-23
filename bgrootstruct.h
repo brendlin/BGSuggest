@@ -55,5 +55,6 @@ struct bgrootstruct{
   Float_t     MARD                   ;
   Float_t     SensorAgeDays          ;
   Bool_t      SuspendEnd             ;
+  Bool_t      TempBasalEnd           ;
 };
 
