@@ -52,6 +52,9 @@ class BGEventBase :
     def IsBasalInsulin(self) :
         return self.__class__.__name__ == 'BasalInsulin'
 
+    def IsTempBasal(self) :
+        return self.__class__.__name__ == 'TempBasal'
+
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
 
@@ -267,17 +270,27 @@ class BasalInsulin(BGEventBase) :
         # From 4am ... and assuming 48 bins
         return int(2*MyTime.GetTimeOfDay(time_ut))
 
-    def __init__(self,iov_0,iov_1,h_basal) :
+    def __init__(self,iov_0,iov_1,h_basal,containers=[]) :
         BGEventBase.__init__(self,iov_0,iov_1)
         self.BasalRates = [0]*48
         HistToList(h_basal,self.BasalRates)
 
         self.basalBoluses = []
         time_ut = MyTime.RoundDownToTheHour(iov_0)
-        time_step_hr = 0.2
+        time_step_hr = 0.1
 
         while time_ut < iov_1 :
-            bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)
+
+            basalFactor = 1
+
+            # If there is a TempBasal, then modify the basalFactor
+            for c in containers :
+                if not c.IsTempBasal() :
+                    continue
+                if c.iov_0 < time_ut and time_ut < c.iov_1 :
+                    basalFactor = c.basalFactor
+
+            bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)*basalFactor
             minibolus = InsulinBolus(time_ut,bolus_val)
             self.basalBoluses.append(minibolus)
 
@@ -296,3 +309,12 @@ class BasalInsulin(BGEventBase) :
 
     def BGEffectRemaining(self,the_time,settings) :
         return 0
+
+#------------------------------------------------------------------
+class TempBasal(BGEventBase) :
+
+    # This class is designed to communicate with the BasalInsulin class.
+
+    def __init__(self,iov_0,iov_1,basalFactor) :
+        BGEventBase.__init__(self,iov_0,iov_1)
+        self.basalFactor = basalFactor
