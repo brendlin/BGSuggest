@@ -378,7 +378,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Make the food and insulin blobs
     #
-    food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,['Food','LiverBasalGlucose'],bwzProfile,week,day,doStack=True)
+    food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,['Food','LiverBasalGlucose','LiverFattyGlucose'],bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
@@ -388,7 +388,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food'],bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food','LiverFattyGlucose'],bwzProfile,week,day)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
@@ -728,7 +728,7 @@ def GetDayContainers(tree,week,day) :
 
             # Temp basal amount is assumed to be percent
             ut_end = FindTempBasalEnd(tree,i)
-            print 'Temp Basal, %s - %s : %2.2f'%(MyTime.StringFromTime(ut),MyTime.StringFromTime(ut_end),tree.TempBasalAmount)
+            print 'Temp Basal, %s - %s : %2.2f%%'%(MyTime.StringFromTime(ut),MyTime.StringFromTime(ut_end),tree.TempBasalAmount*100)
             print
             c = TempBasal(ut,ut_end,tree.TempBasalAmount)
             containers.append(c)
@@ -810,6 +810,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
                       'Food':ROOT.kRed+1,
                       'LiverBasalGlucose':ROOT.kOrange,
                       'BasalInsulin':ROOT.kAzure-9,
+                      'LiverFattyGlucose':ROOT.kMagenta,
                       }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light

@@ -284,16 +284,34 @@ class BasalInsulin(BGEventBase) :
         # Update every 6 minutes...!
         time_step_hr = 0.1
 
+        fattyEvents = dict()
+
         while time_ut < iov_1 :
 
             basalFactor = 1
+            bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)*basalFactor
 
             # If there is a TempBasal, then modify the basalFactor
             for c in containers :
                 if not c.IsTempBasal() :
                     continue
-                if c.iov_0 < time_ut and time_ut < c.iov_1 :
-                    basalFactor = c.basalFactor
+
+                if c.iov_0 > time_ut or time_ut > c.iov_1 :
+                    continue
+
+                basalFactor = c.basalFactor
+
+                # If the basalFactor >1, then
+                # Make a new LiverFattyGlucose object, add it to container list
+                if basalFactor > 1 :
+                    bolusSlice = 65*bolus_val*(basalFactor-1)
+
+                    if c.iov_0 not in fattyEvents.keys() :
+                        # ta is tunable (1.4 works ok for a 6-hr basal)
+                        ta = (c.iov_1 - c.iov_0) * 1.4 / float(MyTime.OneHour)
+                        fattyEvents[c.iov_0] = LiverFattyGlucose(c.iov_0,c.iov_1,bolusSlice,ta)
+                    else :
+                        fattyEvents[c.iov_0].BGEffect += bolusSlice
 
             # Now check for Suspend, which should preempt TempBasals
             for c in containers :
@@ -302,11 +320,18 @@ class BasalInsulin(BGEventBase) :
                 if c.iov_0 < time_ut and time_ut < c.iov_1 :
                     basalFactor = c.basalFactor
 
-            bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)*basalFactor
+            bolus_val *= basalFactor
             minibolus = InsulinBolus(time_ut,bolus_val)
             self.basalBoluses.append(minibolus)
 
             time_ut += time_step_hr*MyTime.OneHour
+
+        for k in fattyEvents.keys() :
+            start = MyTime.StringFromTime(fattyEvents[k].iov_0)
+            end = MyTime.StringFromTime(fattyEvents[k].iov_1)
+            bg = ('%.0f'%(fattyEvents[k].BGEffect)).rjust(3)
+            print 'Adding fattyEvent: %s - %s, BGEffect: %s mg/dL, lifetime: %2.1f'%(start,end,bg,fattyEvents[k].Ta)
+            containers.append(fattyEvents[k])
 
         return
 
@@ -339,3 +364,44 @@ class Suspend(TempBasal) :
 
     def __init__(self,iov_0,iov_1) :
         TempBasal.__init__(self,iov_0,iov_1,0)
+
+#------------------------------------------------------------------
+class LiverFattyGlucose(BGActionBase) :
+    #
+    # This assumes that the independent variable that the user keeps track of
+    # is simply "BG Effect". In other words, we will not attempt any tricky transformation
+    # to insulin or food or something.
+
+    def __init__(self,time_start,time_end,BGEffect,Ta) :
+        BGActionBase.__init__(self,time_start,time_end + 6.*MyTime.OneHour)
+
+        # We keep track of this only in terms of BG effect.
+        # When created, this comes from the insulin * sensitivity. But then it becomes
+        # a non-associated object (i.e. not dependent on any settings).
+        # If a mis-bolus is made, then the magnitude of the mis-bolus is calculated in BG points,
+        # and then translated back to insulin via the sensitivity setting.
+        self.BGEffect = BGEffect
+
+        # It also has its own Ta
+        self.Ta = Ta
+
+        return
+
+    def getFattyGlucoseLocalTa(self,settings) :
+        return self.Ta
+
+    def getMagnitudeOfBGEffect(self,settings) :
+        # settings is not used
+        return self.BGEffect
+
+    def getIntegral(self,time_start,time_end,settings) :
+
+        # Use a trick below: instead of settings, give them self (for Ta)
+        return self.getIntegralBase(time_start,time_end,self,'getFattyGlucoseLocalTa')
+
+
+    # Derivative, useful for making e.g. absorption plots
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+
+        # Use a trick below: instead of settings, give them self (for Ta)
+        return self.getBGEffectDerivPerHourBase(time_ut,self,'getFattyGlucoseLocalTa')
