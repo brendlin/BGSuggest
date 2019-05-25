@@ -3,7 +3,7 @@ import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
 from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose,BasalInsulin,findFirstBG
-from BGActionClasses import TempBasal,Suspend
+from BGActionClasses import TempBasal,Suspend,ExerciseEffect
 import copy
 
 #------------------------------------------------------------------
@@ -280,7 +280,7 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
 
     for c in containers :
 
-        if not (c.IsBolus() or c.IsFood() or c.IsSuspend()) :
+        if not (c.IsBolus() or c.IsFood() or c.IsSuspend() or c.IsExercise()) :
             continue
 
         if c.iov_0 < start_of_day :
@@ -292,10 +292,14 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
         t.SetTextSize(10)
         t.SetTextAlign(12)
 
-        if c.IsBolus() or (c.IsSuspend() and c.Duration_hr() > 0.1) :
+        if c.IsBolus() or (c.IsSuspend() and c.Duration_hr() > 0.1) or c.IsExercise() :
 
             if c.IsSuspend() :
                 t.SetTitle('.OFF %2.1fhr'%(c.Duration_hr()))
+
+            if c.IsExercise() :
+                print c.getMagnitudeOfBGEffect(settings)
+                t.SetTitle('#times%.1f (#minus%.0f)'%(c.factor,-c.getMagnitudeOfBGEffect(settings)))
 
             if c.IsBolus() :
                 t.SetTitle('%.1fu (#minus%.0f)'%(c.insulin,-c.getMagnitudeOfBGEffect(settings)))
@@ -412,6 +416,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                                   MyTime.WeekDayHourToUniversal(week,day,24),
                                   basal_histograms.latestHistogram())
 
+    # Exercise (temp)
+#     exercise = ExerciseEffect(MyTime.WeekDayHourToUniversal(week,day,6.75),
+#                               MyTime.WeekDayHourToUniversal(week,day,7.75),
+#                               2.0,
+#                               containers)
+#     containers.insert(0,exercise)
+
     #
     # Make BolusWizard UserProfile
     #
@@ -446,12 +457,12 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
-    insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,['InsulinBolus','BasalInsulin'],bwzProfile,week,day,doStack=True)
+    insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,['InsulinBolus','BasalInsulin','ExerciseEffect'],bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food','LiverFattyGlucose'],bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food','LiverFattyGlucose','ExerciseEffect'],bwzProfile,week,day)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
@@ -877,6 +888,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
                       'LiverBasalGlucose':ROOT.kOrange,
                       'BasalInsulin':ROOT.kAzure-9,
                       'LiverFattyGlucose':ROOT.kMagenta,
+                      'ExerciseEffect':ROOT.kBlue,
                       }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
@@ -961,7 +973,7 @@ def PredictionPlots(containers,settings,week,day) :
                 continue
 
             # For the typical bin in the day-plot:
-            if c.IsBolus() or c.IsFood() or c.IsBasalGlucose() or c.IsBasalInsulin() :
+            if c.IsBolus() or c.IsFood() or c.IsBasalGlucose() or c.IsBasalInsulin() or c.IsLiverFattyGlucose() or c.IsExercise() :
                 impactInTimeInterval = c.getBGEffectDerivPerHourTimesInterval(the_time,hours_per_step,settings)
                 bg_estimates[-1] += impactInTimeInterval
                 max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.BGEffectRemaining(the_time,settings)))

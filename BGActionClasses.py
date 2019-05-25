@@ -61,6 +61,12 @@ class BGEventBase :
     def IsSuspend(self) :
         return self.__class__.__name__ == 'Suspend'
 
+    def IsExercise(self) :
+        return self.__class__.__name__ == 'ExerciseEffect'
+
+    def IsLiverFattyGlucose(self) :
+        return self.__class__.__name__ == 'LiverFattyGlucose'
+
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
 
@@ -408,3 +414,70 @@ class LiverFattyGlucose(BGActionBase) :
 
         # Use a trick below: instead of settings, give them self (for Ta)
         return self.getBGEffectDerivPerHourBase(time_ut,self,'getFattyGlucoseLocalTa')
+
+#------------------------------------------------------------------
+class ExerciseEffect(BGEventBase) :
+    #
+    # This will calculate the "multiplier effect" that exercise has on insulin,
+    # and its effect is the sum of those effects.
+    #
+    def __init__(self,iov_0,iov_1,factor,containers=[]) :
+        BGEventBase.__init__(self,iov_0,iov_1)
+        self.factor = factor
+        self.affectedEvents = []
+        print 'Exercise:',MyTime.StringFromTime(iov_0),'-',MyTime.StringFromTime(iov_1)
+
+        for c in containers :
+            if c.iov_0 > self.iov_1 :
+                continue
+
+            if c.iov_1 < self.iov_0 :
+                continue
+
+            # Consider only insulin
+            if not (c.IsBasalInsulin() or c.IsBolus()) :
+                continue
+
+            print '-',c.__class__.__name__,MyTime.StringFromTime(c.iov_0)
+            self.affectedEvents.append(c)
+
+        return
+
+    def BGEffectRemaining(self,the_time,settings) :
+        return 0
+
+    def getMagnitudeOfBGEffect(self,settings) :
+        mag = 0
+
+        time_step = self.iov_0
+        hours_per_step = 0.1
+
+        while time_step < self.iov_1 :
+
+            print MyTime.StringFromTime(time_step)
+            for c in self.affectedEvents :
+                mag += c.getBGEffectDerivPerHourTimesInterval(time_step,hours_per_step,settings)
+
+            time_step += (hours_per_step * MyTime.OneHour)
+
+        return mag * self.factor
+
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+        deriv = 0
+        if self.iov_0 > time_ut or time_ut > self.iov_1 :
+            return 0
+
+        for c in self.affectedEvents :
+            deriv += c.getBGEffectDerivPerHour(time_ut,settings)
+
+        return deriv * self.factor
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr,settings) :
+        ret = 0
+        if self.iov_0 > time_start or time_start > self.iov_1 :
+            return 0
+
+        for c in self.affectedEvents :
+            ret += c.getBGEffectDerivPerHourTimesInterval(time_start,delta_hr,settings)
+
+        return ret * self.factor
