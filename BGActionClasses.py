@@ -36,6 +36,9 @@ class BGEventBase :
         self.iov_1 = iov_1 # ut
         return
 
+    def Duration_hr(self) :
+        return (self.iov_1 - self.iov_0)/float(MyTime.OneHour)
+
     # Helper functions for figuring out the derived class:
     def IsMeasurement(self) :
         return self.__class__.__name__ == 'BGMeasurement'

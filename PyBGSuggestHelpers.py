@@ -266,6 +266,69 @@ def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio
     return c
 
 #------------------------------------------------------------------
+def DrawEventDetails(containers,start_of_day,can,settings) :
+    from PlotFunctions import tobject_collector
+
+    can.cd()
+
+    BGSTART = 165
+    BGO = 40
+    bgoffset_upper = BGO
+    bgoffset_lower = BGO
+    hr_tracker_upper = 0
+    hr_tracker_lower = 0
+
+    for c in containers :
+
+        if not (c.IsBolus() or c.IsFood() or c.IsSuspend()) :
+            continue
+
+        if c.iov_0 < start_of_day :
+            continue
+
+        t = ROOT.TLatex(MyTime.GetTimeOfDay(c.iov_0),-BGSTART,'.')
+        t.SetName('%s %s'%(c.__class__.__name__, MyTime.StringFromTime(c.iov_0)))
+        t.SetTextFont(43)
+        t.SetTextSize(10)
+        t.SetTextAlign(12)
+
+        if c.IsBolus() or (c.IsSuspend() and c.Duration_hr() > 0.1) :
+
+            if c.IsSuspend() :
+                t.SetTitle('.OFF %2.1fhr'%(c.Duration_hr()))
+
+            if c.IsBolus() :
+                t.SetTitle('%.1fu (#minus%.0f)'%(c.insulin,-c.getMagnitudeOfBGEffect(settings)))
+
+            # Figure out where to put it
+            t.SetY(-BGSTART)
+            if (c.iov_0-hr_tracker_lower) < 3.1*MyTime.OneHour :
+                t.SetY(t.GetY() + bgoffset_lower)
+                bgoffset_lower += BGO
+            else :
+                hr_tracker_lower = c.iov_0
+                bgoffset_lower = BGO
+
+        if c.IsFood() :
+
+            if c.IsFood() :
+                t.SetTitle('%.0fg (+%.0f)'%(c.food,c.getMagnitudeOfBGEffect(settings)))
+
+            # Figure out where to put it
+            t.SetY(BGSTART)
+            if (c.iov_0-hr_tracker_upper) < 3.1*MyTime.OneHour :
+                t.SetY(t.GetY() - bgoffset_upper)
+                bgoffset_upper += BGO
+            else :
+                hr_tracker_upper = c.iov_0
+                bgoffset_upper = BGO
+
+        t.Draw()
+        tobject_collector.append(t)
+
+    return
+
+#------------------------------------------------------------------
 def GetMidPad(can) :
     return can.GetPrimitive('pad_mid')
 
@@ -444,6 +507,10 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     xaxis = GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis()
     xaxis.SetLabelOffset(5)
     plotfunc.SetAxisLabels(mid_pad,'','#Delta^{}BG^{ }/^{ }hr')
+
+    # Draw the container details
+    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0)
+    DrawEventDetails(containers,start_of_plot_day,mid_pad,bwzProfile)
 
     # Format sub-pad (the settings)
     sub_pad = prediction_canvas.GetPrimitive('pad_sub')
@@ -714,9 +781,9 @@ def GetDayContainers(tree,week,day) :
         # Suspend
         #
         if tree.SuspendStart :
-
             ut = tree.UniversalTime
             c = Suspend(ut,FindSuspendEnd(tree,i))
+            print 'Suspend, %s - %s\n'%(MyTime.StringFromTime(c.iov_0),MyTime.StringFromTime(c.iov_1))
             containers.append(c)
 
         #
@@ -728,8 +795,7 @@ def GetDayContainers(tree,week,day) :
 
             # Temp basal amount is assumed to be percent
             ut_end = FindTempBasalEnd(tree,i)
-            print 'Temp Basal, %s - %s : %2.2f%%'%(MyTime.StringFromTime(ut),MyTime.StringFromTime(ut_end),tree.TempBasalAmount*100)
-            print
+            print 'Temp Basal, %s - %s : %2.2f%%\n'%(MyTime.StringFromTime(ut),MyTime.StringFromTime(ut_end),tree.TempBasalAmount*100)
             c = TempBasal(ut,ut_end,tree.TempBasalAmount)
             containers.append(c)
 
