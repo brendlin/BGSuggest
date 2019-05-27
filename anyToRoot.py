@@ -39,6 +39,6 @@ if __name__ == '__main__' :
     options,args = p.parse_args()
 
     # We will process Medtronic csv files OR TidePool json files!
-    options.match_regexp = ['CareLink_Export.*csv','Tidepool_Export.*json']
+    options.match_regexp = ['CareLink_Export.*csv','Tidepool_Export.*json','Annotations_.*json']
 
     main(options,args)

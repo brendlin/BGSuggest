@@ -195,6 +195,10 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                 sDetailed.SuspendStart = True
                 storage.suspend_in_progress = True
 
+        # Annotation
+        elif itype == 'annotation' :
+            sDetailed.annotation = str(line['annotation'])
+
         treeDetailed.Fill()
 
     if False :

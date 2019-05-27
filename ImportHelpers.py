@@ -12,6 +12,14 @@ class BRCL :
         self.btype = _btype
         self.csvIndex = _csvIndex
         self.isNumber = (self.btype != 'C')
+        self.defaultValue = {
+            'I': -1,
+            'O':  False,
+            'L':  0,
+            'F': -1,
+            'Ftime':-1,
+            'C':' '*16,
+            }.get(self.btype)
         return
 
     #
@@ -38,13 +46,7 @@ class BRCL :
         return
 
     def DefaultValue(self) :
-        return {
-            'I': -1,
-            'O':  False,
-            'L':  0,
-            'F': -1,
-            'Ftime':-1
-            }.get(self.btype)
+        return self.defaultValue
 
     def getFormattedValueFromVector(self,vector) :
         val = vector[self.csvIndex]
@@ -94,6 +96,7 @@ def GetTreeBranchClassesDict() :
 #     branches['RawDeviceType'          ] = BRCL('C',38)
     branches["SuspendEnd"             ] = BRCL('O',99999)
     branches["TempBasalEnd"           ] = BRCL('O',99999)
+    branches["annotation"             ] = BRCL('C',99999)
     return branches
 
 # Do not worry - if you import this file multiple times, you will not create multiple instances.

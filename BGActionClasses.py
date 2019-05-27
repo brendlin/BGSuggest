@@ -67,6 +67,16 @@ class BGEventBase :
     def IsLiverFattyGlucose(self) :
         return self.__class__.__name__ == 'LiverFattyGlucose'
 
+    def IsAnnotation(self) :
+        return self.__class__.__name__ == 'Annotation'
+
+#------------------------------------------------------------------
+class Annotation(BGEventBase) :
+    def __init__(self,iov_0,iov_1,annotation) :
+        BGEventBase.__init__(self,iov_0,iov_1)
+        self.annotation = annotation.replace('\x00','').strip()
+        return
+
 #------------------------------------------------------------------
 class BGActionBase(BGEventBase) :
 

@@ -3,7 +3,7 @@ import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
 from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose,BasalInsulin,findFirstBG
-from BGActionClasses import TempBasal,Suspend,ExerciseEffect
+from BGActionClasses import TempBasal,Suspend,ExerciseEffect,Annotation
 import copy
 
 #------------------------------------------------------------------
@@ -786,6 +786,7 @@ def GetDayContainers(tree,week,day) :
                 #print 'Food was %d. New decay time: %2.1f.'%(tree.BWZCarbInput,2. + add_time)
                 c.UserInputCarbSensitivity = 2. + add_time
 
+            print 'Food, %s : %2.0fg\n'%(MyTime.StringFromTime(c.iov_0),c.food)
             containers.append(c)
 
         #
@@ -810,10 +811,39 @@ def GetDayContainers(tree,week,day) :
             c = TempBasal(ut,ut_end,tree.TempBasalAmount)
             containers.append(c)
 
-    #
-    # Now make the prediction plots (moved elsewhere)
-    #
-    return containers
+        # Annotations
+        if len(tree.annotation.replace('\x00','').strip()) :
+            ut = tree.UniversalTime
+            c = Annotation(ut,ut,tree.annotation)
+            print 'Annotation, %s: \"%s\"'%(MyTime.StringFromTime(c.iov_0),c.annotation)
+            containers.append(c)
+
+
+    # Clean containers using the annotations
+    containers_cleaned = []
+    for c in containers :
+        keep = True
+
+        if c.IsAnnotation() :
+            continue
+
+        for annot in containers :
+            if not annot.IsAnnotation() :
+                continue
+
+            #Look for exact match on iov_0
+            if annot.iov_0 != c.iov_0 :
+                continue
+
+            if annot.annotation == 'cancelFood' :
+                print 'Removing food at %s\n'%(MyTime.StringFromTime(c.iov_0))
+                keep = False
+                break
+
+        if keep :
+            containers_cleaned.append(c)
+
+    return containers_cleaned
 
 #------------------------------------------------------------------
 def ComparePredictionToReality(prediction,reality) :

@@ -56,5 +56,9 @@ struct bgrootstruct{
   Float_t     SensorAgeDays          ;
   Bool_t      SuspendEnd             ;
   Bool_t      TempBasalEnd           ;
+  //
+  // Annotation variables
+  //
+  Char_t      annotation[256];
 };
 
