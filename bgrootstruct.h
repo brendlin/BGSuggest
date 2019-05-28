@@ -56,6 +56,8 @@ struct bgrootstruct{
   Float_t     SensorAgeDays          ;
   Bool_t      SuspendEnd             ;
   Bool_t      TempBasalEnd           ;
+  Float_t     ExerciseDuration       ; // in hours
+  Float_t     ExerciseIntensity      ; // multiplying factor for insulin
   //
   // Annotation variables
   //

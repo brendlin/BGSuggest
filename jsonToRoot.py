@@ -152,6 +152,10 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
                 print line
                 import sys; sys.exit()
 
+        # Food (manual input)
+        elif itype == 'food' :
+            sDetailed.BWZCarbInput = line['carbInput']
+
         elif itype == 'wizard' :
             sDetailed.BWZEstimate = line['recommended']['net']
             sDetailed.BWZTargetHighBG = ToMgDL(line['bgTarget']['high'],cfactor)
@@ -198,6 +202,11 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         # Annotation
         elif itype == 'annotation' :
             sDetailed.annotation = str(line['annotation'])
+
+        # Exercise (manual input)
+        elif itype == 'exercise' :
+            sDetailed.ExerciseDuration = float(line['duration'])
+            sDetailed.ExerciseIntensity = float(line['intensity'])
 
         treeDetailed.Fill()
 

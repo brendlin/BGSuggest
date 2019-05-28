@@ -96,6 +96,8 @@ def GetTreeBranchClassesDict() :
 #     branches['RawDeviceType'          ] = BRCL('C',38)
     branches["SuspendEnd"             ] = BRCL('O',99999)
     branches["TempBasalEnd"           ] = BRCL('O',99999)
+    branches["ExerciseDuration"       ] = BRCL('F',99999)
+    branches["ExerciseIntensity"      ] = BRCL('F',99999)
     branches["annotation"             ] = BRCL('C',99999)
     return branches
 

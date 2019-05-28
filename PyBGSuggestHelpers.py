@@ -298,7 +298,6 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
                 t.SetTitle('.OFF %2.1fhr'%(c.Duration_hr()))
 
             if c.IsExercise() :
-                print c.getMagnitudeOfBGEffect(settings)
                 t.SetTitle('#times%.1f (#minus%.0f)'%(c.factor,-c.getMagnitudeOfBGEffect(settings)))
 
             if c.IsBolus() :
@@ -818,6 +817,13 @@ def GetDayContainers(tree,week,day) :
             print 'Annotation, %s: \"%s\"'%(MyTime.StringFromTime(c.iov_0),c.annotation)
             containers.append(c)
 
+        # exercise
+        if tree.ExerciseDuration > 0 :
+            ut = tree.UniversalTime
+            c = ExerciseEffect(ut,ut + tree.ExerciseDuration*MyTime.OneHour,tree.ExerciseIntensity)
+            print 'Exercise, %s: Duration %.1fh Intensity %.1f'%(MyTime.StringFromTime(c.iov_0),tree.ExerciseDuration,c.factor)
+            containers.append(c)
+
 
     # Clean containers using the annotations
     containers_cleaned = []
@@ -843,7 +849,17 @@ def GetDayContainers(tree,week,day) :
         if keep :
             containers_cleaned.append(c)
 
-    return containers_cleaned
+    # Load exercise stuff:
+    for c in containers :
+        if c.IsExercise() :
+            c.LoadContainers(containers)
+
+    def MyFn(c) :
+        return c.iov_0
+
+    containers_cleaned_sorted = sorted(containers_cleaned,key=MyFn)
+
+    return containers_cleaned_sorted
 
 #------------------------------------------------------------------
 def ComparePredictionToReality(prediction,reality) :

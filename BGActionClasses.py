@@ -435,8 +435,11 @@ class ExerciseEffect(BGEventBase) :
         BGEventBase.__init__(self,iov_0,iov_1)
         self.factor = factor
         self.affectedEvents = []
-        print 'Exercise:',MyTime.StringFromTime(iov_0),'-',MyTime.StringFromTime(iov_1)
+        if len(containers) :
+            self.LoadContainers(containers)
+        return
 
+    def LoadContainers(self,containers) :
         for c in containers :
             if c.iov_0 > self.iov_1 :
                 continue
@@ -448,7 +451,6 @@ class ExerciseEffect(BGEventBase) :
             if not (c.IsBasalInsulin() or c.IsBolus()) :
                 continue
 
-            print '-',c.__class__.__name__,MyTime.StringFromTime(c.iov_0)
             self.affectedEvents.append(c)
 
         return
@@ -464,7 +466,6 @@ class ExerciseEffect(BGEventBase) :
 
         while time_step < self.iov_1 :
 
-            print MyTime.StringFromTime(time_step)
             for c in self.affectedEvents :
                 mag += c.getBGEffectDerivPerHourTimesInterval(time_step,hours_per_step,settings)
 
