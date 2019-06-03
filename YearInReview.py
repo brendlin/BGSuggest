@@ -30,6 +30,8 @@ def GetAverageBGs(hist,tree,last_week,n_weeks=1) :
         if Avg == 0 :
             continue
 
+        print 'Week: %s  n: %s  mean: %s'%(('%d'%i).rjust(3),('%d'%n).rjust(3),('%.0f'%Avg).rjust(4))
+
         hist.SetBinContent(i+1,Avg)
         hist.SetBinError(i+1,RootMeanSquare(all_vals[-1]))
 

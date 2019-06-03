@@ -11,7 +11,7 @@ class BRCL :
     def __init__(self,_btype,_csvIndex=-1) :
         self.btype = _btype
         self.csvIndex = _csvIndex
-        self.isNumber = (self.btype != 'C')
+        self.isNumber = (self.btype not in ['C','O'])
         self.defaultValue = {
             'I': -1,
             'O':  False,

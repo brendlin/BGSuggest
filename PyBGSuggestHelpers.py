@@ -298,7 +298,7 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
                 t.SetTitle('.OFF %2.1fhr'%(c.Duration_hr()))
 
             if c.IsExercise() :
-                t.SetTitle('#times%.1f (#minus%.0f)'%(c.factor,-c.getMagnitudeOfBGEffect(settings)))
+                t.SetTitle('#times%.1f (#minus%.0f)'%(c.factor+1,-c.getMagnitudeOfBGEffect(settings)))
 
             if c.IsBolus() :
                 t.SetTitle('%.1fu (#minus%.0f)'%(c.insulin,-c.getMagnitudeOfBGEffect(settings)))
@@ -409,6 +409,11 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                          MyTime.WeekDayHourToUniversal(week,day,24),
                          basal_histograms.latestHistogram(),containers)
     containers.append(basal)
+
+    # Load exercise stuff:
+    for c in containers :
+        if c.IsExercise() :
+            c.LoadContainers(containers)
 
     # basal, normal schedule
     basal_schedule = BasalInsulin(findFirstBG(containers).iov_0 - 6*MyTime.OneHour,
@@ -647,7 +652,8 @@ def FindTempBasalEnd(tree,i) :
 
     if not found_end :
         print 'Error - could not find end of the Temp basal!'
-        import sys; sys.exit();
+        UT_next = MyTime.timerightnow + 3*MyTime.OneHour
+        #import sys; sys.exit();
 
     # Reset the tree to the entry we were at:
     tree.GetEntry(i)
@@ -848,11 +854,6 @@ def GetDayContainers(tree,week,day) :
 
         if keep :
             containers_cleaned.append(c)
-
-    # Load exercise stuff:
-    for c in containers :
-        if c.IsExercise() :
-            c.LoadContainers(containers)
 
     def MyFn(c) :
         return c.iov_0
