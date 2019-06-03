@@ -5,17 +5,17 @@ import sys
 from datetime import datetime,timedelta
 import json
 
-# Add parent directory to python path
-the_path = ('/').join(os.getcwd().split('/')[:-1]) 
-print 'Adding %s to PYTHONPATH.'%(the_path)
-sys.path.append(the_path)
+# Get base path (BGSuggest)
+bgsuggest_path = ('/').join(os.path.abspath(__file__).split('/')[:-2])
+print 'Adding %s to PYTHONPATH.'%(bgsuggest_path)
+sys.path.append(bgsuggest_path)
 
 from TimeClass import MyTime
 
 def DownloadJSONAndMoveIntoPosition(options,args) :
 
     # First, download the latest data:
-    os.system('source DownloadJSON.sh %s'%(options.file))
+    os.system('cd %s/TidepoolUploadDownload && source JSONDownload.sh %s'%(bgsuggest_path,options.file))
 
     today = datetime.now()
     # Navigate to the beginning of this week:
@@ -38,12 +38,12 @@ def DownloadJSONAndMoveIntoPosition(options,args) :
     if options.week == 0 :
         start_outfilestr = '_999999'
         end_outfilestr = '_thisWeek'
-    outfilename = '../data/Tidepool_Export%s%s.json'%(start_outfilestr,end_outfilestr)
+    outfilename = '%s/data/Tidepool_Export%s%s.json'%(bgsuggest_path,start_outfilestr,end_outfilestr)
     print 'Name : %s'%(outfilename)
 
     raw_input('Press enter to continue.')
 
-    json_file = open(options.file)
+    json_file = open('%s/TidepoolUploadDownload/%s'%(bgsuggest_path,options.file))
     data = json.load(json_file)
     data_skimmed = [] # This will be a list of dictionaries.
 
