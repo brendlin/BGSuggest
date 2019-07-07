@@ -588,3 +588,14 @@ class ExerciseEffect(BGEventBase) :
             ret += c.getBGEffectDerivPerHourTimesInterval(time_start,delta_hr,settings)
 
         return ret * self.factor
+
+    def getIntegral(self,time_start,time_end,settings) :
+
+        ret = 0
+        if self.iov_0 > time_start or time_end > self.iov_1 :
+            return 0
+
+        for c in self.affectedEvents :
+            ret += c.getIntegral(time_start,time_end,settings)
+
+        return ret * self.factor
