@@ -145,7 +145,11 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
             if line['subType'] == 'normal' :
                 sDetailed.BolusVolumeDelivered = line[line['subType']] # bolus volume Delivered? Selected?
             elif line['subType'] == 'square' :
-                sDetailed.BolusVolumeDelivered = line['extended'] # bolus volume Delivered? Selected?
+                sDetailed.BolusVolumeDeliveredDelayed = line['extended'] # bolus volume Delivered? Selected?
+                sDetailed.ProgrammedBolusDuration = line['duration'] / MyTime.MillisecondsInAnHour
+            elif line['subType'] == 'dual/square':
+                sDetailed.BolusVolumeDelivered = line['normal']
+                sDetailed.BolusVolumeDeliveredDelayed = line['extended']
                 sDetailed.ProgrammedBolusDuration = line['duration'] / MyTime.MillisecondsInAnHour
             else :
                 print 'Error - need to handle %s (non-normal) subType!'%(line['subType'])

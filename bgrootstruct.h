@@ -16,6 +16,7 @@ struct bgrootstruct{
   std::string BolusType              ;
   Float_t     BolusVolumeSelected    ;
   Float_t     BolusVolumeDelivered   ;
+  Float_t     BolusVolumeDeliveredDelayed ; // delayed amount
   Float_t     ProgrammedBolusDuration; // in hours
   std::string PrimeType              ;
   Float_t     PrimeVolumeDelivered   ;

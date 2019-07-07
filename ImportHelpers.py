@@ -99,6 +99,7 @@ def GetTreeBranchClassesDict() :
     branches["ExerciseDuration"       ] = BRCL('F',99999)
     branches["ExerciseIntensity"      ] = BRCL('F',99999)
     branches["annotation"             ] = BRCL('C',99999)
+    branches['BolusVolumeDeliveredDelayed'] = BRCL('F',99999) # line['extended']
     return branches
 
 # Do not worry - if you import this file multiple times, you will not create multiple instances.

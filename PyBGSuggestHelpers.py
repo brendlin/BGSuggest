@@ -3,7 +3,7 @@ import ROOT
 from TimeClass import MyTime
 from Settings import SettingsHistograms,TrueUserProfile
 from BGActionClasses import BGMeasurement,InsulinBolus,Food,LiverBasalGlucose,BasalInsulin,findFirstBG
-from BGActionClasses import TempBasal,Suspend,ExerciseEffect,Annotation
+from BGActionClasses import TempBasal,Suspend,ExerciseEffect,Annotation,SquareWaveBolus
 import copy
 
 #------------------------------------------------------------------
@@ -407,7 +407,9 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     # basal
     basal = BasalInsulin(findFirstBG(containers).iov_0 - 6*MyTime.OneHour,
                          MyTime.WeekDayHourToUniversal(week,day,24),
-                         basal_histograms.latestHistogram(),containers)
+                         basal_histograms.latestHistogram(),
+                         sensi_histograms.latestHistogram(),
+                         containers)
     containers.append(basal)
 
     # Load exercise stuff:
@@ -456,17 +458,19 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Make the food and insulin blobs
     #
-    food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,['Food','LiverBasalGlucose','LiverFattyGlucose'],bwzProfile,week,day,doStack=True)
+    positive_bg_items = ['LiverBasalGlucose','Food','LiverFattyGlucose']
+    food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,positive_bg_items,bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
-    insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,['InsulinBolus','BasalInsulin','ExerciseEffect'],bwzProfile,week,day,doStack=True)
+    negative_bg_items = ['InsulinBolus','BasalInsulin','ExerciseEffect','SquareWaveBolus']
+    insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,negative_bg_items,bwzProfile,week,day,doStack=True)
     GetMidPad(prediction_canvas).cd()
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
-    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,['LiverBasalGlucose','BasalInsulin','InsulinBolus','Food','LiverFattyGlucose','ExerciseEffect'],bwzProfile,week,day)
+    both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,positive_bg_items + negative_bg_items,bwzProfile,week,day)
     both_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
 
@@ -773,6 +777,18 @@ def GetDayContainers(tree,week,day) :
             containers.append(c)
 
         #
+        # Square wave bolus (not dual+square)
+        #
+        if tree.BolusVolumeDeliveredDelayed > 0 :
+
+            ut = tree.UniversalTime
+            c = SquareWaveBolus(ut,tree.ProgrammedBolusDuration,tree.BolusVolumeDeliveredDelayed)
+            containers.append(c)
+
+            if c.iov_0 > start_printouts :
+                c.Print()
+
+        #
         # Food
         #
         if tree.BWZCarbInput > 0 :
@@ -936,6 +952,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
                       'BasalInsulin':ROOT.kAzure-9,
                       'LiverFattyGlucose':ROOT.kMagenta,
                       'ExerciseEffect':ROOT.kBlue,
+                      'SquareWaveBolus':ROOT.kCyan+1,
                       }.get(classname)
 
         c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
@@ -1006,7 +1023,7 @@ def PredictionPlots(containers,settings,week,day) :
                 continue
 
             # Special treatment for the first bin of the day:
-            if (i==0) and (c.IsFood() or c.IsBolus() or c.IsBasalGlucose() or c.IsBasalInsulin()) :
+            if (i==0) and c.AffectsBG() :
 
                 # Find the first BG
                 first_bg_time = findFirstBG(containers).iov_0
@@ -1020,7 +1037,7 @@ def PredictionPlots(containers,settings,week,day) :
                 continue
 
             # For the typical bin in the day-plot:
-            if c.IsBolus() or c.IsFood() or c.IsBasalGlucose() or c.IsBasalInsulin() or c.IsLiverFattyGlucose() or c.IsExercise() :
+            if c.AffectsBG() :
                 impactInTimeInterval = c.getBGEffectDerivPerHourTimesInterval(the_time,hours_per_step,settings)
                 bg_estimates[-1] += impactInTimeInterval
                 max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.BGEffectRemaining(the_time,settings)))

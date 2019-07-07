@@ -39,12 +39,26 @@ class BGEventBase :
     def Duration_hr(self) :
         return (self.iov_1 - self.iov_0)/float(MyTime.OneHour)
 
+    def AffectsBG(self) :
+        try :
+            return self.affectsBG
+        except AttributeError :
+            print 'Please indicate whether %s affects BG!'%(self.__class__.__name__)
+            import sys; sys.exit()
+        return False
+
     # Helper functions for figuring out the derived class:
     def IsMeasurement(self) :
         return self.__class__.__name__ == 'BGMeasurement'
 
     def IsBolus(self) :
         return self.__class__.__name__ == 'InsulinBolus'
+
+    def IsSquareWaveBolus(self) :
+        return self.__class__.__name__ == 'SquareWaveBolus'
+
+    def IsDualWaveBolus(self) :
+        return self.__class__.__name__ == 'DualWaveBolus'
 
     def IsFood(self) :
         return self.__class__.__name__ == 'Food'
@@ -134,6 +148,7 @@ class BGMeasurement(BGEventBase) :
     #
     def __init__(self,iov_0,iov_1,const_BG) :
         BGEventBase.__init__(self,iov_0,iov_1)
+        self.affectsBG = False
         self.const_BG = const_BG # real BG reading
         self.firstBG = False
 
@@ -142,6 +157,7 @@ class InsulinBolus(BGActionBase) :
 
     def __init__(self,time_ut,insulin) :
         BGActionBase.__init__(self,time_ut,time_ut + 6.*MyTime.OneHour)
+        self.affectsBG = True
         self.insulin = insulin
         self.UserInputCarbSensitivity = 2
         self.BWZMatchedDelivered = True
@@ -184,10 +200,78 @@ class InsulinBolus(BGActionBase) :
         return
 
 #------------------------------------------------------------------
+class SquareWaveBolus(BGEventBase) :
+
+    def __init__(self,time_ut,duration_hr,insulin) :
+        BGEventBase.__init__(self,time_ut,time_ut + duration_hr + 6.*MyTime.OneHour)
+        self.affectsBG = True
+        self.insulin = insulin
+        self.duration_hr = duration_hr
+        self.miniBoluses = []
+
+        # Update every 6 minutes...!
+        time_step_hr = 0.1
+
+        time_it = time_ut
+
+        while time_it < (time_ut + MyTime.OneHour*self.duration_hr) :
+
+            # bolus value is total value divided by number of steps
+            bolus_val = self.insulin * time_step_hr / float(self.duration_hr)
+
+            minibolus = InsulinBolus(time_it,bolus_val)
+            self.miniBoluses.append(minibolus)
+            #print "mini-bolus with %.2f insulin"%(bolus_val)
+
+            # increment by one time step
+            time_it += time_step_hr*MyTime.OneHour
+
+        return
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr,settings) :
+        return sum(c.getBGEffectDerivPerHourTimesInterval(time_start,delta_hr,settings) for c in self.miniBoluses)
+
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+        return sum(c.getBGEffectDerivPerHour(time_ut,settings) for c in self.miniBoluses)
+
+    def getIntegral(self,time_start,time_end,settings) :
+        return sum(c.getIntegral(time_start,time_end,settings) for c in self.miniBoluses)
+
+    def BGEffectRemaining(self,time_ut,settings) :
+        return sum(c.BGEffectRemaining(time_ut,settings) for c in self.miniBoluses)
+
+    def Print(self) :
+        print 'Square bolus, %s : Duration %.1fh, %2.1fu\n'%(MyTime.StringFromTime(self.iov_0),self.duration_hr,self.insulin)
+        return
+
+#------------------------------------------------------------------
+class DualWaveBolus(BGEventBase) :
+
+    def __init__(self,time_ut,duration_hr,insulin_square,insulin_inst) :
+        BGEventBase.__init__(self,time_ut,time_ut + duration_hr + 6.*MyTime.OneHour)
+        self.affectsBG = True
+        self.insulin_square = insulin_square
+        self.insulin_inst = insulin_inst
+        self.duration_hr = duration_hr
+
+        self.square = SquareWaveBolus(time_ut,duration_hr,insulin_square)
+        self.inst = InsulinBolus(time_ut,insulin_inst)
+
+    def getBGEffectDerivPerHourTimesInterval(self,time_start,delta_hr,settings) :
+        return sum(c.getBGEffectDerivPerHourTimesInterval(time_start,delta_hr,settings) for c in [self.square,self.inst])
+
+    def getBGEffectDerivPerHour(self,time_ut,settings) :
+        return sum(c.getBGEffectDerivPerHour(time_ut,settings) for c in [self.square,self.inst])
+
+    def getIntegral(self,time_start,time_end,settings) :
+        return sum(c.getIntegral(time_start,time_end,settings) for c in [self.square,self.inst])
+
+#------------------------------------------------------------------
 class Food(BGActionBase) :
 
     def __init__(self,iov_0,iov_1,food) :
         BGActionBase.__init__(self,iov_0,iov_1)
+        self.affectsBG = True
         self.food = food
 
     def getMagnitudeOfBGEffect(self,settings) :
@@ -209,6 +293,7 @@ class LiverBasalGlucose(BGEventBase) :
 
     def __init__(self) :
         BGEventBase.__init__(self,0,float('inf'))
+        self.affectsBG = True
         self.binWidth_hr = 0.25 # granularity of the binning, when calculating.
         self.nBins = int( 24 / self.binWidth_hr )
         self.LiverHourlyGlucoseFine = [0]*self.nBins # Make memory slots, but recalculate each time
@@ -292,10 +377,16 @@ class BasalInsulin(BGEventBase) :
         # From 4am ... and assuming 48 bins
         return int(2*MyTime.GetTimeOfDay(time_ut))
 
-    def __init__(self,iov_0,iov_1,h_basal,containers=[]) :
+    def __init__(self,iov_0,iov_1,h_basal,h_insulin=[],containers=[]) :
         BGEventBase.__init__(self,iov_0,iov_1)
+        self.affectsBG = True
         self.BasalRates = [0]*48
         HistToList(h_basal,self.BasalRates)
+
+        # Insulin sensitivity is needed to make liver events
+        tmp_InsulinSensitivityList = [0]*48
+        if h_insulin :
+            HistToList(h_insulin,tmp_InsulinSensitivityList)
 
         self.basalBoluses = []
         time_ut = MyTime.RoundDownToTheHour(iov_0)
@@ -309,6 +400,7 @@ class BasalInsulin(BGEventBase) :
 
             basalFactor = 1
             bolus_val = self.BasalRates[self.getBin(time_ut)]*float(time_step_hr)*basalFactor
+            insulin_sensi = tmp_InsulinSensitivityList[self.getBin(time_ut)]
 
             # If there is a TempBasal, then modify the basalFactor
             for c in containers :
@@ -323,7 +415,7 @@ class BasalInsulin(BGEventBase) :
                 # If the basalFactor >1, then
                 # Make a new LiverFattyGlucose object, add it to container list
                 if basalFactor > 1 :
-                    bolusSlice = 65*bolus_val*(basalFactor-1)
+                    bolusSlice = insulin_sensi*bolus_val*(basalFactor-1)
 
                     if c.iov_0 not in fattyEvents.keys() :
                         # ta is tunable (1.4 works ok for a 6-hr basal)
@@ -373,6 +465,7 @@ class TempBasal(BGEventBase) :
 
     def __init__(self,iov_0,iov_1,basalFactor) :
         BGEventBase.__init__(self,iov_0,iov_1)
+        self.affectsBG = False
         self.basalFactor = basalFactor
 
 #------------------------------------------------------------------
@@ -383,6 +476,7 @@ class Suspend(TempBasal) :
 
     def __init__(self,iov_0,iov_1) :
         TempBasal.__init__(self,iov_0,iov_1,0)
+        self.affectsBG = False
 
 #------------------------------------------------------------------
 class LiverFattyGlucose(BGActionBase) :
@@ -393,6 +487,7 @@ class LiverFattyGlucose(BGActionBase) :
 
     def __init__(self,time_start,time_end,BGEffect,Ta) :
         BGActionBase.__init__(self,time_start,time_end + 6.*MyTime.OneHour)
+        self.affectsBG = True
 
         # We keep track of this only in terms of BG effect.
         # When created, this comes from the insulin * sensitivity. But then it becomes
@@ -433,6 +528,7 @@ class ExerciseEffect(BGEventBase) :
     #
     def __init__(self,iov_0,iov_1,factor,containers=[]) :
         BGEventBase.__init__(self,iov_0,iov_1)
+        self.affectsBG = True
         self.factor = factor
         self.affectedEvents = []
         if len(containers) :
