@@ -72,7 +72,7 @@ def GetOverview(tree,d1,d2) :
     text_l2 = '%2.1f%% below, %2.1f%% target, %2.1f%% above'%(n_below_80,n_target,n_above_160)
     text_l3 = '%2.1f%% above 200'%(n_above_200)
 
-    can = ROOT.TCanvas('year_in_review','year in review',600,500)
+    can = ROOT.TCanvas('week_overview','week overview',600,500)
     plotfunc.SetColorGradient('HiggsBlue')
     hist.GetXaxis().SetLabelOffset(0.007)
     plotfunc.AddHistogram(can,hist)
