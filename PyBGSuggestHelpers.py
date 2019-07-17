@@ -612,16 +612,23 @@ def FindTimeOfNextBG(tree,i) :
 
 #------------------------------------------------------------------
 def FindTimeAndBGOfPreviousBG(tree,i) :
-    bg_read = 0
-    UT_next = tree.UniversalTime
+
     for j in range(i-1,0,-1) :
         tree.GetEntry(j)
         if tree.BGReading > 0 :
-            bg_read = tree.BGReading
-            break
-    tree.GetEntry(i)
 
-    return UT_next,bg_read
+            UT_previous = tree.UniversalTime
+            bg_read = tree.BGReading
+
+            # Reset the tree to the entry we were at:
+            tree.GetEntry(i)
+
+            # break by returning
+            return UT_previous,bg_read
+
+    print 'Error - cannot find previous BG! Exiting.'
+    import sys; sys.exit()
+    return 0,0
 
 #------------------------------------------------------------------
 def FindSuspendEnd(tree,i) :
@@ -673,8 +680,8 @@ def GetDayContainers(tree,week,day) :
     print MyTime.StringFromTime(MyTime.WeekDayHourToUniversal(week,day,0))
     print '%%%%%%%%%%%%%%%%%%%'
 
-    # The start of when we consider BG readings:
-    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0)-MyTime.OneDay # from 4am
+    # The start of what we will plot (we will find the first BG before then):
+    start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0) # from 4am
 
     # The start-time of relevant events is 6 hours before the first BG measurement (found below).
     # We consider earlier events because they can bleed into the next day.
@@ -705,15 +712,16 @@ def GetDayContainers(tree,week,day) :
             #
             # the iov_1 is the iov_0 of this first measurement
             #
-            UT_next,bg_read = FindTimeAndBGOfPreviousBG(tree,i)
+            UT_next = tree.UniversalTime
+            UT_previous,bg_read = FindTimeAndBGOfPreviousBG(tree,i)
 
             # Make the "First BG" container entry:
-            c = BGMeasurement(tree.UniversalTime,UT_next,bg_read)
+            c = BGMeasurement(UT_previous,UT_next,bg_read)
             c.firstBG = True
             containers.append(c)
 
-            # Anything 6h before first measurement is a relevant event
-            start_time_relevantEvents = tree.UniversalTime - 6.*MyTime.OneHour
+            # Anything 12h before first measurement is a relevant event
+            start_time_relevantEvents = UT_previous - 12.*MyTime.OneHour
 
             break
         #
@@ -1001,7 +1009,7 @@ def PredictionPlots(containers,settings,week,day) :
 #         c.Print()
 
     # When we hit a BG reading, then we want to consider (once) resetting the prediction.
-    considered_for_bgReset = []
+    already_considered_for_bgReset = []
 
     for i in range(int(24./hours_per_step)) :
 
@@ -1009,10 +1017,18 @@ def PredictionPlots(containers,settings,week,day) :
         time_on_plot = hours_per_step*i
 
         # We start the estimate with the estimate from the previous point.
-        # We will calculate the differential effect of each object.
+        # We then calculate the differential effect of each object.
         # The effects are assumed to be additive.
-        # If this is the first point, then we will
-        bg_estimates.append( 0 if (not i) else bg_estimates[-1] )
+        # If this is the first point, then we start with the last BG estimate from the previous day.
+        if len(bg_estimates) == 0 :
+            first_bg = findFirstBG(containers)
+            bg_estimates.append(first_bg.const_BG)
+
+            # We have effectively already considered this BG for reset.
+            already_considered_for_bgReset.append(first_bg.iov_0)
+
+        else :
+            bg_estimates.append( bg_estimates[-1] )
 
         # We'll keep track of whether large boluses are in progress in this time-step
         max_bgEffectRemaining = 0
@@ -1030,6 +1046,7 @@ def PredictionPlots(containers,settings,week,day) :
 
                 # Add the integral from the first BG time up to this time
                 bg_estimates[-1] += c.getIntegral(first_bg_time,the_time,settings)
+
                 continue
 
             # If the object time has expired, skip it.
@@ -1043,10 +1060,10 @@ def PredictionPlots(containers,settings,week,day) :
                 max_bgEffectRemaining = max(max_bgEffectRemaining,math.fabs(c.BGEffectRemaining(the_time,settings)))
 
             # If there was a new reading, we reset the prediction (with the caveats below)
-            if c.IsMeasurement() and not (c.iov_0 in considered_for_bgReset) :
+            if c.IsMeasurement() and not (c.iov_0 in already_considered_for_bgReset) :
 
                 # We should only consider resetting one time!
-                considered_for_bgReset.append(c.iov_0)
+                already_considered_for_bgReset.append(c.iov_0)
 
                 # If nothing is in progress that would cause 30 points drop/increase,
                 # reset the prediction.

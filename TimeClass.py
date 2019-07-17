@@ -55,6 +55,15 @@ class TimeClass :
         l = long(l)
         return l - self.OneMinute*time.localtime(l).tm_min - self.OneSecond*time.localtime(l).tm_sec
 
+    def RoundDownToTheDay(self,l) :
+        # In universal time. Round down to nearest day (starting at 4am)
+        l = long(l)
+        l = l - self.OneHour*4 # 5:30 --> "1:30"
+        tmp = time.localtime(l)
+        l = l - self.OneMinute*tmp.tm_min - self.OneSecond*tmp.tm_sec - self.OneHour*tmp.tm_hour # 1:30 -> 0:00
+        l = l + self.OneHour*4 # 0:00 --> 4:00
+        return l
+
     def TimeFromString(self,s) :
         # universal
         try :

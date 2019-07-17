@@ -300,8 +300,9 @@ class LiverBasalGlucose(BGEventBase) :
         self.smear_hr_pm = 1 # average the rate over plus or minus X hours
         return
 
-    def getBin(self) :
-        return int(MyTime.GetTimeOfDay(time_ut)/self.binWidth_hr)
+    def getBin(self,time_ut) :
+        bin = int(MyTime.GetTimeOfDay(time_ut)/float(self.binWidth_hr))
+        return bin
 
     def getSmearedList(self,settings) :
         # First, lengthen the list
@@ -330,24 +331,37 @@ class LiverBasalGlucose(BGEventBase) :
 
         sum = 0
 
-        # consider all overlapping bins
-        for i in range(self.getBin(time_start),self.getBin(time_end)+1) :
+        # iterators (both are incremented, to avoid float-to-int errors)
+        it_time = time_start
+        liver_bin = self.getBin(it_time)
+
+        time_start_day_4am = MyTime.RoundDownToTheDay(time_start)
+
+        # print 'Getting integral for',MyTime.StringFromTime(time_start),MyTime.StringFromTime(time_end)
+
+        # Go through times up to the end, plus one bin width (in order to avoid missing the last bin)
+        while (it_time <= time_end + self.binWidth_hr*MyTime.OneHour) :
 
             # For each bin, find the valid time interval (in hours)
             # This should ensure that the final bin is treated correctly.
-            low_edge = max(MyTime.GetTimeOfDay(time_start),i*self.binWidth_hr)
-            up_edge  = min(MyTime.GetTimeOfDay(time_end)  ,(i+1)*self.binWidth_hr)
+            low_edge = max(time_start,time_start_day_4am + liver_bin    *self.binWidth_hr*MyTime.OneHour)
+            up_edge  = min(time_end  ,time_start_day_4am + (liver_bin+1)*self.binWidth_hr*MyTime.OneHour)
 
-            delta_time = up_edge - low_edge
+            if up_edge < low_edge :
+                break
+
+            delta_time_hr = (up_edge - low_edge)/float(MyTime.OneHour)
+            # print 'bin edges:',MyTime.StringFromTime(time_start_day_4am + liver_bin    *self.binWidth_hr*MyTime.OneHour),
+            # print              MyTime.StringFromTime(time_start_day_4am + (liver_bin+1)*self.binWidth_hr*MyTime.OneHour)
+            # print MyTime.StringFromTime(low_edge), MyTime.StringFromTime(up_edge), delta_time_hr
 
             # return (Glucose / hour) * D(hour)
-            sum += delta_time * tmp_LiverHourlyGlucoseFine[i]
+            sum += delta_time_hr * tmp_LiverHourlyGlucoseFine[liver_bin % self.nBins]
+
+            it_time += self.binWidth_hr*MyTime.OneHour
+            liver_bin += 1
 
         return sum
-
-    def getBin(self,time_ut) :
-        bin = int(MyTime.GetTimeOfDay(time_ut)/float(self.binWidth_hr))
-        return bin
 
     def BGEffectRemaining(self,the_time,settings) :
         return 0
