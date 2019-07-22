@@ -288,7 +288,7 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
         if c.iov_0 < start_of_day :
             continue
 
-        t = ROOT.TLatex(MyTime.GetTimeOfDay(c.iov_0),-BGSTART,'.')
+        t = ROOT.TLatex((c.iov_0 - start_of_day)/float(MyTime.OneHour),-BGSTART,'.')
         t.SetName('%s %s'%(c.__class__.__name__, MyTime.StringFromTime(c.iov_0)))
         t.SetTextFont(43)
         t.SetTextSize(10)
