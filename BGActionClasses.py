@@ -98,6 +98,11 @@ class BGActionBase(BGEventBase) :
         BGEventBase.__init__(self,iov_0,iov_1)
         return
 
+    def getTa(self,settings,whichTa) :
+        if hasattr(self,'Ta') :
+            return self.Ta
+        return getattr(settings,whichTa)(self.iov_0)
+
     def getIntegralBase(self,time_start,time_end,settings,whichTa) :
         # whichTa is a string (either 'getInsulinTa' or 'getFoodTa')
 
@@ -108,7 +113,7 @@ class BGActionBase(BGEventBase) :
         time_hr_end   = (time_end   - self.iov_0)/float(MyTime.OneHour)
 
         # Get the appropriate decay time
-        Ta = getattr(settings,whichTa)(self.iov_0)
+        Ta = self.getTa(settings,whichTa)
 
         # Get the magnitude (virtual, must be specified by the derived class)
         magnitude = self.getMagnitudeOfBGEffect(settings)
@@ -132,7 +137,7 @@ class BGActionBase(BGEventBase) :
             return 0.
 
         time_hr = (time_ut-self.iov_0)/float(MyTime.OneHour)
-        Ta = getattr(settings,whichTa)(self.iov_0)
+        Ta = self.getTa(settings,whichTa)
 
         return InsulinActionCurveDerivative(time_hr,Ta) * self.getMagnitudeOfBGEffect(settings)
 
@@ -278,11 +283,20 @@ class Food(BGActionBase) :
         return settings.getFoodSensitivity(self.iov_0) * self.food
 
     def getIntegral(self,time_start,time_end,settings) :
+        # If it has its own tA, then the base class knows to override the settings.
         return self.getIntegralBase(time_start,time_end,settings,'getFoodTa')
 
     # Derivative, useful for making e.g. absorption plots
     def getBGEffectDerivPerHour(self,time_ut,settings) :
+        # If it has its own tA, then the base class knows to override the settings.
         return self.getBGEffectDerivPerHourBase(time_ut,settings,'getFoodTa')
+
+    def AddBGEffect(self,time_start,time_end,settings,added_bgeffect) :
+        # convert bgeffect into food
+        bgeffect_in_slice = self.getIntegral(time_start,time_end,settings)
+        # what factor do you need to scale up to the desired effect?
+        factor = (bgeffect_in_slice + added_bgeffect)/float(bgeffect_in_slice)
+        self.food = self.food * factor
 
 #------------------------------------------------------------------
 class LiverBasalGlucose(BGEventBase) :
@@ -515,7 +529,7 @@ class LiverFattyGlucose(BGActionBase) :
 
         return
 
-    def getFattyGlucoseLocalTa(self,settings) :
+    def getFattyGlucoseLocalTa(self,time_ut) :
         return self.Ta
 
     def getMagnitudeOfBGEffect(self,settings) :
@@ -533,6 +547,12 @@ class LiverFattyGlucose(BGActionBase) :
 
         # Use a trick below: instead of settings, give them self (for Ta)
         return self.getBGEffectDerivPerHourBase(time_ut,self,'getFattyGlucoseLocalTa')
+
+    def AddBGEffect(self,time_start,time_end,settings,added_bgeffect) :
+        # add a bgeffect (in a given time slice)
+        bgeffect_in_slice = self.getIntegral(time_start,time_end,settings)
+        factor = (bgeffect_in_slice + added_bgeffect)/float(bgeffect_in_slice)
+        self.BGEffect = self.BGEffect * factor
 
 #------------------------------------------------------------------
 class ExerciseEffect(BGEventBase) :

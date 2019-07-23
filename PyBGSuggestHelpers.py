@@ -7,6 +7,9 @@ from BGActionClasses import TempBasal,Suspend,ExerciseEffect,Annotation,SquareWa
 import Fitting
 import copy
 
+positive_bg_items = ['LiverBasalGlucose','Food','LiverFattyGlucose']
+negative_bg_items = ['InsulinBolus','BasalInsulin','ExerciseEffect','SquareWaveBolus']
+
 #------------------------------------------------------------------
 def a1cToBS(n,formula_type='Kurt') :
     if formula_type == 'ADA' :
@@ -481,23 +484,32 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     containers_food = Fitting.MakeFoodDeepCopies(containers)
     Fitting.PrepareBGMeasurementsForFit(containers,bwzProfile)
     Fitting.CalculateResidual([],containers_food,bwzProfile)
-    Fitting.MinimizeChi2WithFood(containers_food,bwzProfile)
+    Fitting.MinimizeAllChi2(containers_food,bwzProfile,MyTime.WeekDayHourToUniversal(week,day,0))
     food_fit_plot = PredictionPlots(containers_food,bwzProfile,week,day,nHours=nHours)
     food_fit_plot.SetLineWidth(3)
+    food_fit_delta = GetDeltaBGversusTimePlot('FoodOrLiver_fit',containers_food,positive_bg_items,bwzProfile,week,day,doStack=False,nHours=nHours)
 
     if True :
         plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot,'lE3')
 
+    # Continue the experiment! (Re-use the existing modified containers)
+    Fitting.BalanceFattyEvents(containers_food,bwzProfile)
+    food_fit_plot_v2 = PredictionPlots(containers_food,bwzProfile,week,day,nHours=nHours)
+    food_fit_plot_v2.SetLineWidth(3)
+    food_fit_plot_v2.SetLineColor(ROOT.kBlue)
+    food_fit_delta_v2 = GetDeltaBGversusTimePlot('FoodOrLiver_fit_v2',containers_food,positive_bg_items,bwzProfile,week,day,doStack=False,nHours=nHours)
+
+    if True :
+        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot_v2,'lE3')
+
     #
     # Make the food and insulin blobs
     #
-    positive_bg_items = ['LiverBasalGlucose','Food','LiverFattyGlucose']
     food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,positive_bg_items,bwzProfile,week,day,doStack=True,nHours=nHours)
     GetMidPad(prediction_canvas).cd()
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
-    negative_bg_items = ['InsulinBolus','BasalInsulin','ExerciseEffect','SquareWaveBolus']
     insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,negative_bg_items,bwzProfile,week,day,doStack=True,nHours=nHours)
     GetMidPad(prediction_canvas).cd()
     insulin_plot.Draw('lsame')
@@ -512,10 +524,11 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     basal_schedule_plot.SetLineWidth(2)
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),basal_schedule_plot,'lhist')
 
-    food_fit_delta = GetDeltaBGversusTimePlot('FoodOrLiver_fit',containers_food,positive_bg_items,bwzProfile,week,day,doStack=False,nHours=nHours)
     GetMidPad(prediction_canvas).cd()
     food_fit_delta.Draw('lsame')
+    food_fit_delta_v2.Draw('lsame')
     plotfunc.tobject_collector.append(food_fit_delta)
+    plotfunc.tobject_collector.append(food_fit_delta_v2)
 
     a = ROOT.TLine()
     a.DrawLine(-0.5,0,nHours + 0.5,0)
