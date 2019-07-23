@@ -77,6 +77,25 @@ def CalculateResidual(x,containers,settings,list_of_timestamps=[]) :
     return residual
 
 #------------------------------------------------------------------
+def BGEffectRemaining(time_ut,containers,settings,abs_value=False) :
+
+    remaining = 0
+
+    for c in containers :
+        if not c.AffectsBG() :
+            continue
+        if c.iov_0 > time_ut :
+            continue
+
+        tmp = c.BGEffectRemaining(time_ut,settings)
+        if abs_value :
+            remaining += abs(tmp)
+        else :
+            remaining += tmp
+
+    return remaining
+
+#------------------------------------------------------------------
 def PrepareBGMeasurementsForFit(containers,settings) :
 
     # Gather BG points that you want to consider.
@@ -94,21 +113,8 @@ def PrepareBGMeasurementsForFit(containers,settings) :
         bgmeas.iov_1_fit = bgmeas.iov_1
         bgmeas.exclude_ActionRemains = False
 
-        remaining = 0
-        remaining_unsigned = 0
-        
-        # These better be in chronological order.
-        for c in containers :
-
-            try :
-                if c.iov_0 > bgmeas.iov_0 :
-                    continue
-                tmp = c.BGEffectRemaining(bgmeas.iov_0,settings)
-                remaining += tmp
-                remaining_unsigned += abs(tmp)
-
-            except AttributeError :
-                pass
+        remaining = BGEffectRemaining(bgmeas.iov_0,containers,settings)
+        remaining_unsigned = BGEffectRemaining(bgmeas.iov_0,containers,settings,abs_value=True)
 
         # if nothing crazy is going on at the moment, consider this BG measurement.
         #if derivative > 60 or unsigned_derivative > 60 :
@@ -237,7 +243,7 @@ def CalculateResidualFoodFatAntiCorrelated(x,fat,food,bg0,bg1,bgs_inbetween,cont
             bg_estimate += c.getIntegral(bg0.iov_0,bg.iov_0,settings)
 
         this_residual = abs(bg.const_BG - bg_estimate)
-        # print 'During fit: BG: %d Estimate: %d Residual: %d'%(bg.const_BG,bg_estimate,this_residual)
+        # print 'During fit: Swap: %d BG: %d Estimate: %d Residual: %d'%(BGSwap,bg.const_BG,bg_estimate,this_residual)
         residual += this_residual
 
     # Reset everything
@@ -264,14 +270,19 @@ def BalanceFattyEvents(containers,settings) :
 
         bg_before = None
         for c_j in range(c_i,-1,-1) :
-            if not containers[c_j].IsMeasurement() :
+            bgmeas = containers[c_j]
+            if not bgmeas.IsMeasurement() :
                 continue
-            bg_before = containers[c_j]
+
+            if BGEffectRemaining(bgmeas.iov_0,containers,settings,abs_value=True) > 60 :
+                continue
+
+            bg_before = bgmeas
             break
 
         if not bg_before :
-            print 'BalanceFattyEvents: Cannot find previous measurement -- stopping here.'
-            return
+            print 'BalanceFattyEvents: Fat at %s - Cannot find previous measurement -- stopping here.'%(MyTime.StringFromTime(fat.iov_0))
+            continue
 
         bg_after = None
         for c_j in range(c_i,len(containers)) :
@@ -287,8 +298,8 @@ def BalanceFattyEvents(containers,settings) :
             break
 
         if not bg_after :
-            print 'BalanceFattyEvents: Cannot find next measurement -- stopping here.'
-            return
+            print 'BalanceFattyEvents: Fat at %s - Cannot find next measurement -- stopping here.'%(MyTime.StringFromTime(fat.iov_0))
+            continue
 
         # print 'Before- and after- measurements: %s and %s'%(MyTime.StringFromTime(bg_before.iov_0),
         #                                                     MyTime.StringFromTime(bg_after.iov_0))
@@ -297,6 +308,7 @@ def BalanceFattyEvents(containers,settings) :
         for c_j in range(containers.index(bg_before)+1,containers.index(bg_after)) :
             if containers[c_j].IsMeasurement() :
                 bgs_inbetween.append(containers[c_j])
+                # print 'Found BG in between:',containers[c_j].const_BG
 
         master_food = None
 
@@ -331,8 +343,9 @@ def BalanceFattyEvents(containers,settings) :
         BGSwap = 0
         Ta = master_food.Ta
         x0 = (BGSwap,Ta)
+
         BGSwapMin = -fat.getIntegral(bg_before.iov_0,bg_after.iov_0,settings)
-        BGSwapMax = food.getIntegral(bg_before.iov_0,bg_after.iov_0,settings)
+        BGSwapMax = master_food.getIntegral(bg_before.iov_0,bg_after.iov_0,settings)
         taMin,taMax = 1,10
 
         bounds = ([BGSwapMin,taMin],[BGSwapMax,taMax])
