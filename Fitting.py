@@ -354,7 +354,7 @@ def BalanceFattyEvents(containers,settings) :
         fat.AddBGEffect(        bg_before.iov_0,bg_after.iov_0,settings, BGSwap)
         master_food.AddBGEffect(bg_before.iov_0,bg_after.iov_0,settings,-BGSwap)
 
-        recs_food = '%d grams -> %d grams, Ta = %d'%(original_food,master_food.food,res_lsq.x[1])
+        recs_food = '%d grams -> %d grams, Ta = %.2f'%(original_food,master_food.food,res_lsq.x[1])
         food_sensi = float(settings.getFoodSensitivity(fat.iov_0))
         recs_fat  = '%d mgdL -> %d mgdL'%(original_fat,fat.BGEffect)
         recs_fat += ' (%d grams -> %d grams)'%(original_fat/food_sensi,fat.BGEffect/food_sensi)

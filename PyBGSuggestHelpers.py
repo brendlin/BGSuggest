@@ -487,7 +487,6 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     Fitting.MinimizeAllChi2(containers_food,bwzProfile,MyTime.WeekDayHourToUniversal(week,day,0))
     food_fit_plot = PredictionPlots(containers_food,bwzProfile,week,day,nHours=nHours)
     food_fit_plot.SetLineWidth(3)
-    food_fit_delta = GetDeltaBGversusTimePlot('FoodOrLiver_fit',containers_food,positive_bg_items,bwzProfile,week,day,doStack=False,nHours=nHours)
 
     if True :
         plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot,'lE3')
@@ -525,9 +524,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.AddHistogram(GetMidPad(prediction_canvas),basal_schedule_plot,'lhist')
 
     GetMidPad(prediction_canvas).cd()
-    food_fit_delta.Draw('lsame')
     food_fit_delta_v2.Draw('lsame')
-    plotfunc.tobject_collector.append(food_fit_delta)
     plotfunc.tobject_collector.append(food_fit_delta_v2)
 
     a = ROOT.TLine()
