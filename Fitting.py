@@ -137,7 +137,7 @@ def PrepareBGMeasurementsForFit(containers,settings) :
     return
 
 #------------------------------------------------------------------
-def MinimizeChi2(c,containers,settings,start_of_plot_day) :
+def MinimizeChi2(c,containers,settings) :
 
     import numpy as np
     from scipy.optimize import least_squares
@@ -163,25 +163,10 @@ def MinimizeChi2(c,containers,settings,start_of_plot_day) :
     res_lsq = least_squares(CalculateResidual, x0, args=(containers,settings,list_of_timestamps),
                             bounds=bounds)
 
-    # Print out some recommendations
-    if c.iov_0 > start_of_plot_day :
-
-        recommendations = ''
-
-        if classname == 'Food' :
-            recommendations = '%d grams -> %d grams'%(original,c.food)
-
-        if classname == 'LiverFattyGlucose' :
-            food_sensi = float(settings.getFoodSensitivity(c.iov_0))
-            recommendations = '%d mgdL -> %d mgdL'%(original,c.BGEffect)
-            recommendations += ' (%d grams -> %d grams) (Temp basal = XX for YY hours)'%(original/food_sensi,c.BGEffect/food_sensi)
-
-        print 'Suggestions for event at %s: %s'%(MyTime.StringFromTime(c.iov_0),recommendations)
-
     return
 
 #------------------------------------------------------------------
-def MinimizeAllChi2(containers,settings,start_of_plot_day) :
+def MinimizeAllChi2(containers,settings) :
     # Go through food-item-by-food-item and wiggle it until it fits the data.
     # Also consider liver fatty glucose.
 
@@ -191,7 +176,7 @@ def MinimizeAllChi2(containers,settings,start_of_plot_day) :
         if not c.IsLiverFattyGlucose() :
             continue
 
-        MinimizeChi2(c,containers,settings,start_of_plot_day)
+        MinimizeChi2(c,containers,settings)
 
     # Should be ordered by time
     for c in containers :
@@ -199,17 +184,16 @@ def MinimizeAllChi2(containers,settings,start_of_plot_day) :
         if not c.IsFood() and not c.IsLiverFattyGlucose() :
             continue
 
-        MinimizeChi2(c,containers,settings,start_of_plot_day)
+        MinimizeChi2(c,containers,settings)
 
     return None
 
 #------------------------------------------------------------------
 def CalculateResidualFoodFatAntiCorrelated(x,fat,food,bg0,bg1,bgs_inbetween,containers,settings) :
 
-    # x is in BGEffect units (mg/dL)
-    # One item is affected positively ( food -> food + BGEffect * sensi / f) where f is the fraction of
-    # the event that occurs in the window.
-    # For FattyGlucose, effect -> effect + BGEffect / f
+    # x[0] is in BGEffect units (mg/dL)
+    # x[1] is the food Ta
+    # One item is affected positively (fat -> fat + BGEffect), one negatively (food -> food - BGEffect)
 
     orig_fat  = fat.BGEffect
     orig_food = food.food
@@ -244,7 +228,8 @@ def CalculateResidualFoodFatAntiCorrelated(x,fat,food,bg0,bg1,bgs_inbetween,cont
 
         this_residual = abs(bg.const_BG - bg_estimate)
         # print 'During fit: Swap: %d BG: %d Estimate: %d Residual: %d'%(BGSwap,bg.const_BG,bg_estimate,this_residual)
-        residual += this_residual
+        # loss function is effectively residual^4 now, very punishing for outliers.
+        residual += this_residual**2
 
     # Reset everything
     fat.BGEffect = orig_fat
@@ -366,18 +351,5 @@ def BalanceFattyEvents(containers,settings) :
         BGSwap = res_lsq.x[0]
         fat.AddBGEffect(        bg_before.iov_0,bg_after.iov_0,settings, BGSwap)
         master_food.AddBGEffect(bg_before.iov_0,bg_after.iov_0,settings,-BGSwap)
-
-        recs_food = '%d grams -> %d grams, Ta = %.2f'%(original_food,master_food.food,res_lsq.x[1])
-        food_sensi = float(settings.getFoodSensitivity(fat.iov_0))
-        recs_fat  = '%d mgdL -> %d mgdL'%(original_fat,fat.BGEffect)
-        recs_fat += ' (%d grams -> %d grams)'%(original_fat/food_sensi,fat.BGEffect/food_sensi)
-
-        print 'New Suggestions for event at %s: %s'%(MyTime.StringFromTime(master_food.iov_0),recs_food)
-        print 'New Suggestions for event at %s: %s (Temp basal = XX for YY hours)'%(MyTime.StringFromTime(fat.iov_0),recs_fat)
-
-#         print 'Originals: food: %d, fat: %d BGSwap: %d'%(original_food,original_fat,BGSwap)
-#         print 'Results: food: %d, fat: %d BGSwap: %d Ta: %2.2f'%(master_food.food,fat.BGEffect,res_lsq.x[0],res_lsq.x[1])
-
-        pass
 
     return

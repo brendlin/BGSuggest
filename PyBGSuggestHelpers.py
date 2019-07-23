@@ -484,7 +484,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     containers_food = Fitting.MakeFoodDeepCopies(containers)
     Fitting.PrepareBGMeasurementsForFit(containers,bwzProfile)
     Fitting.CalculateResidual([],containers_food,bwzProfile)
-    Fitting.MinimizeAllChi2(containers_food,bwzProfile,MyTime.WeekDayHourToUniversal(week,day,0))
+    Fitting.MinimizeAllChi2(containers_food,bwzProfile)
     food_fit_plot = PredictionPlots(containers_food,bwzProfile,week,day,nHours=nHours)
     food_fit_plot.SetLineWidth(3)
 
@@ -497,6 +497,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     food_fit_plot_v2.SetLineWidth(3)
     food_fit_plot_v2.SetLineColor(ROOT.kBlue)
     food_fit_delta_v2 = GetDeltaBGversusTimePlot('FoodOrLiver_fit_v2',containers_food,positive_bg_items,bwzProfile,week,day,doStack=False,nHours=nHours)
+
+    # Make suggestions:
+    for c in containers_food :
+        if c.iov_0 < MyTime.WeekDayHourToUniversal(week,day,0) :
+            continue
+        if hasattr(c,'PrintSuggestion') :
+            c.PrintSuggestion(bwzProfile)
 
     if True :
         plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot_v2,'lE3')

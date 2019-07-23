@@ -279,6 +279,11 @@ class Food(BGActionBase) :
         self.affectsBG = True
         self.food = food
 
+        # For eventual suggestions
+        self.original_value = food
+
+        return
+
     def getMagnitudeOfBGEffect(self,settings) :
         return settings.getFoodSensitivity(self.iov_0) * self.food
 
@@ -297,6 +302,28 @@ class Food(BGActionBase) :
         # what factor do you need to scale up to the desired effect?
         factor = (bgeffect_in_slice + added_bgeffect)/float(bgeffect_in_slice)
         self.food = self.food * factor
+
+    def PrintSuggestion(self,settings) :
+        # We assume that you hijacked this instance to make a fit, and stored
+        # the original in "self.original_value"
+
+        if not hasattr(self,'original_value') :
+            return
+
+        # If below a certain threshold, do not bother.
+        if self.food > 0 and abs(self.original_value - self.food)/float(self.food) < 0.1 :
+            return
+
+        if abs(self.original_value - self.food) < 5 :
+            return
+
+        recommendation = 'Fitted FOOD'
+        recommendation += ' at %s'%(MyTime.StringFromTime(self.iov_0))
+        recommendation += ' %d grams -> %d grams'%(self.original_value,self.food)
+        if hasattr(self,'Ta') :
+            recommendation += ', Ta = %.2f'%(self.Ta)
+        print recommendation
+        return recommendation
 
 #------------------------------------------------------------------
 class LiverBasalGlucose(BGEventBase) :
@@ -448,9 +475,9 @@ class BasalInsulin(BGEventBase) :
                     if c.iov_0 not in fattyEvents.keys() :
                         # ta is tunable (1.4 works ok for a 6-hr basal)
                         ta = (c.iov_1 - c.iov_0) * 1.4 / float(MyTime.OneHour)
-                        fattyEvents[c.iov_0] = LiverFattyGlucose(c.iov_0,c.iov_1,bolusSlice,ta)
+                        fattyEvents[c.iov_0] = {'iov_0':c.iov_0,'iov_1':c.iov_1,'BGEffect':bolusSlice,'Ta':ta}
                     else :
-                        fattyEvents[c.iov_0].BGEffect += bolusSlice
+                        fattyEvents[c.iov_0]['BGEffect'] += bolusSlice
 
             # Now check for Suspend, which should preempt TempBasals
             for c in containers :
@@ -466,11 +493,10 @@ class BasalInsulin(BGEventBase) :
             time_ut += time_step_hr*MyTime.OneHour
 
         for k in fattyEvents.keys() :
-            start = MyTime.StringFromTime(fattyEvents[k].iov_0)
-            end = MyTime.StringFromTime(fattyEvents[k].iov_1)
-            bg = ('%.0f'%(fattyEvents[k].BGEffect)).rjust(3)
-            print 'Adding fattyEvent: %s - %s, BGEffect: %s mg/dL, lifetime: %2.1f'%(start,end,bg,fattyEvents[k].Ta)
-            containers.append(fattyEvents[k])
+            fe = fattyEvents[k]
+            fattyEvent = LiverFattyGlucose(fe['iov_0'],fe['iov_1'],fe['BGEffect'],fe['Ta'])
+            fattyEvent.Print()
+            containers.append(fattyEvent)
 
         return
 
@@ -524,6 +550,9 @@ class LiverFattyGlucose(BGActionBase) :
         # and then translated back to insulin via the sensitivity setting.
         self.BGEffect = BGEffect
 
+        # For eventual suggestions
+        self.original_value = BGEffect
+
         # It also has its own Ta
         self.Ta = Ta
 
@@ -553,6 +582,35 @@ class LiverFattyGlucose(BGActionBase) :
         bgeffect_in_slice = self.getIntegral(time_start,time_end,settings)
         factor = (bgeffect_in_slice + added_bgeffect)/float(bgeffect_in_slice)
         self.BGEffect = self.BGEffect * factor
+
+    def Print(self) :
+        cout = 'LiverFattyGlucose:'
+        cout += ' %s -'%(MyTime.StringFromTime(self.iov_0))
+        cout += ' %s,' %(MyTime.StringFromTime(self.iov_1))
+        bg = ('%.0f'%(self.BGEffect)).rjust(3)
+        cout += ' BGEffect: %s mg/dL, lifetime: %2.1f'%(bg,self.Ta)
+        print cout + '\n'
+        return
+
+    def PrintSuggestion(self,settings) :
+        # We assume that you hijacked this instance to make a fit, and stored
+        # the original in "self.original_value"
+
+        if not hasattr(self,'original_value') :
+            return
+
+        # If below a certain threshold, do not bother.
+        if abs(self.original_value - self.BGEffect)/float(self.BGEffect) < 0.1 :
+            return
+
+        Sfood = float(settings.getFoodSensitivity(self.iov_0))
+        recommendation = 'Recommend TEMP BASAL'
+        recommendation += ' at %s'%(MyTime.StringFromTime(self.iov_0))
+        recommendation += ' %d mgdL -> %d mgdL'%(self.original_value,self.BGEffect)
+        recommendation += ' (%d grams -> %d grams)'%(self.original_value/Sfood,self.BGEffect/Sfood)
+        recommendation += ' (Temp basal = XX for YY hours)'
+        print recommendation
+        return recommendation
 
 #------------------------------------------------------------------
 class ExerciseEffect(BGEventBase) :
