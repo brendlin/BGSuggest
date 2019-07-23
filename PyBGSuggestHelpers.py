@@ -424,6 +424,11 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                          containers)
     containers.append(basal)
 
+    # Sort again to put the temp BasalGlucose in order:
+    def MyFn(c) :
+        return c.iov_0
+    containers = sorted(containers,key=MyFn)
+
     # Load exercise stuff:
     for c in containers :
         if c.IsExercise() :
@@ -976,6 +981,10 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
     c_hists = []
     toggleLightDark = True
 
+    h_basalglucose = None
+    h_basalinsulin = None
+    h_tempglucose = []
+
     for ci,c in enumerate(containers) :
 
         classname = c.__class__.__name__
@@ -984,7 +993,7 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
         if not classname in match_to :
             continue
 
-        c_hists.append(ROOT.TH1F('%s_%d'%(tag,ci),'asdf',*hist_args))
+        hist = ROOT.TH1F('%s_%d'%(tag,ci),'asdf',*hist_args)
 
         color = ROOT.kBlack
         if doStack :
@@ -997,21 +1006,37 @@ def GetDeltaBGversusTimePlot(name,containers,match_to,settings,week,day,doStack=
                       'SquareWaveBolus':ROOT.kCyan+1,
                       }.get(classname)
 
-        c_hists[-1].SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
+        hist.SetFillColorAlpha(color,0.4 + 0.2*(toggleLightDark)) # alternate dark and light
         toggleLightDark = not toggleLightDark
-        c_hists[-1].SetLineColorAlpha(color+1,1)
-        c_hists[-1].SetLineWidth(1)
+        hist.SetLineColorAlpha(color+1,1)
+        hist.SetLineWidth(1)
 
         for i in range(int(nHours/float(hours_per_step))+1) :
 
             time_ut = start_of_plot_day + i*hours_per_step*float(MyTime.OneHour)
-            c_hists[-1].SetBinContent(i+1,c.getBGEffectDerivPerHour(time_ut,settings))
+            hist.SetBinContent(i+1,c.getBGEffectDerivPerHour(time_ut,settings))
+
+        if classname == 'BasalInsulin' :
+            h_basalinsulin = hist
+        elif classname == 'LiverBasalGlucose' :
+            h_basalglucose = hist
+        elif classname == 'LiverFattyGlucose' :
+            h_tempglucose.append(hist)
+        else :
+            c_hists.append(hist)
 
     if doStack :
         h_ret = ROOT.THStack('stack_%s'%(tag),'stack')
     else :
         h_ret = ROOT.TH1F('%s'%(tag),'asdf',*hist_args)
 
+    # Add the histograms in a particular order:
+    if h_basalglucose :
+        h_ret.Add(h_basalglucose)
+    if h_basalinsulin :
+        h_ret.Add(h_basalinsulin)
+    for h in reversed(h_tempglucose) :
+        h_ret.Add(h)
     for h in reversed(c_hists) :
         h_ret.Add(h)
 
