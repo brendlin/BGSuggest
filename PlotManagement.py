@@ -81,6 +81,38 @@ def ThreePadCanvas(canvas_name,canvas_title,canw=500,canh=600,ratio_1=0.28,ratio
     return c
 
 #------------------------------------------------------------------
+def FormatBGCanvas(prediction_canvas,nHours=24) :
+
+    time_hist = GetHistWithTimeAxis(nHours)
+    plotfunc.AddHistogram(prediction_canvas,time_hist,'')
+
+    # Prediction canvas
+    plotfunc.FormatCanvasAxes(prediction_canvas)
+    taxisfunc.SetYaxisRanges(prediction_canvas,0.001,350)
+    plotfunc.SetAxisLabels(prediction_canvas,'hr','BG (mg/dL)')
+
+    # Green and yellow target zones
+    AddErrorBandHistogram(prediction_canvas,'yellow',80,180,ROOT.kOrange,nHours)
+    AddErrorBandHistogram(prediction_canvas,'green',100,150,ROOT.kGreen,nHours)
+
+    return
+
+#------------------------------------------------------------------
+def FormatDeltaCanvas(delta_canvas,nHours=24) :
+
+    time_hist = GetHistWithTimeAxis(nHours)
+    plotfunc.AddHistogram(delta_canvas,time_hist,'')
+
+    taxisfunc.SetYaxisRanges(delta_canvas,-299,299)
+    taxisfunc.SetXaxisRanges(delta_canvas,-0.5,nHours + 0.5)
+    taxisfunc.SetYaxisNdivisions(delta_canvas,5,5,0)
+    xaxis = delta_canvas.GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis()
+    xaxis.SetLabelOffset(0.02)
+    plotfunc.SetAxisLabels(delta_canvas,'','#Delta^{}BG^{ }/^{ }hr')
+
+    return
+
+#------------------------------------------------------------------
 def FormatThreePadCanvas(prediction_canvas,nHours=24) :
 
     bg_canvas = plotfunc.GetTopPad(prediction_canvas)

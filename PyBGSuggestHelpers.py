@@ -255,26 +255,38 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     from array import array
 
     nHours = 32
+    doResidualAndSettings = False
 
-    prediction_canvas = PlotManagement.ThreePadCanvas('prediction_canvas','prediction_canvas',600,600,
-                                                      ratio_1=0.41,
-                                                      ratio_2=0.59,
-                                                      ratio_n1=0.17
-                                                      )
+    if doResidualAndSettings :
+        prediction_canvas = PlotManagement.ThreePadCanvas('prediction_canvas','prediction_canvas',600,600,
+                                                          ratio_1=0.41,
+                                                          ratio_2=0.59,
+                                                          ratio_n1=0.17
+                                                          )
 
-    PlotManagement.FormatThreePadCanvas(prediction_canvas,nHours)
+        PlotManagement.FormatThreePadCanvas(prediction_canvas,nHours)
+        residual_canvas = plotfunc.GetBotPad(prediction_canvas)
+        settings_canvas = prediction_canvas.GetPrimitive('pad_sub')
+        delta_canvas = prediction_canvas.GetPrimitive('pad_mid')
+
+    else :
+        prediction_canvas = plotfunc.RatioCanvas('prediction_canvas','prediction_canvas',600,500,0.5)
+        delta_canvas = prediction_canvas.GetPrimitive('pad_bot')
+        residual_canvas = None # plotfunc.GetBotPad(prediction_canvas)
+        settings_canvas = None # prediction_canvas.GetPrimitive('pad_sub')
+
+        PlotManagement.FormatBGCanvas(prediction_canvas,nHours=nHours)
+        PlotManagement.FormatDeltaCanvas(delta_canvas,nHours=nHours)
 
     bg_canvas = plotfunc.GetTopPad(prediction_canvas)
-    delta_canvas = prediction_canvas.GetPrimitive('pad_mid')
-    residual_canvas = plotfunc.GetBotPad(prediction_canvas)
-    settings_canvas = prediction_canvas.GetPrimitive('pad_sub')
 
     week = GetLastWeek(tree)
     week = week - weeks_ago
 
     # Sensor data (if available)
     sensor_data = GetDataFromDay(tree,'SensorGlucose',day,week)
-    sensor_data.SetMarkerSize(0.7)
+    sensor_data.SetMarkerSize(0.5)
+    sensor_data.SetLineWidth(2)
     if sensor_data.GetN() > 1 :
         plotfunc.AddHistogram(bg_canvas,sensor_data,'p')
 
@@ -425,23 +437,19 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     #
     # Make the residual plots
     #
+    if residual_canvas :
 
-    # Residual plot for sensor data
-    if sensor_data.GetN() > 1 :
-        residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
-        residual_plot.SetMarkerSize(0.5)
-        plotfunc.AddHistogram(residual_canvas,residual_plot,'p')
+        # Residual plot for sensor data
+        if sensor_data.GetN() > 1 :
+            residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
+            residual_plot.SetMarkerSize(0.5)
+            plotfunc.AddHistogram(residual_canvas,residual_plot,'p')
 
-    # Residual plot for BG data
-    residual_plot_2 = ComparePredictionToReality(prediction_plot,bg_data)
-    residual_plot_2.SetMarkerSize(0.8)
-    residual_plot_2.SetMarkerColor(ROOT.kRed+1)
-    plotfunc.AddHistogram(residual_canvas,residual_plot_2,'p')
-
-    for i in prediction_canvas.GetListOfPrimitives() :
-        if 'SensorGlucose' in i.GetName() :
-            i.SetMarkerSize(0.5)
-            i.SetLineWidth(2)
+        # Residual plot for BG data
+        residual_plot_2 = ComparePredictionToReality(prediction_plot,bg_data)
+        residual_plot_2.SetMarkerSize(0.8)
+        residual_plot_2.SetMarkerColor(ROOT.kRed+1)
+        plotfunc.AddHistogram(residual_canvas,residual_plot_2,'p')
 
     # Draw the container details
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0)
@@ -463,20 +471,19 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
         hist.SetMarkerSize(6)
         plotfunc.AddHistogram(settings_canvas,hist,'text45')
 
-    #
-    # Draw settings - insulin sensitivity
-    #
-    # For now, just find the latest histogram
-    hist_sensi = sensi_histograms.latestHistogram().Clone('hist_sensi')
-    AddSettingsHistogram(settings_canvas,hist_sensi,ROOT.kGreen+1)
+    if settings_canvas :
+        # Draw settings - insulin sensitivity
+        # For now, just find the latest histogram
+        hist_sensi = sensi_histograms.latestHistogram().Clone('hist_sensi')
+        AddSettingsHistogram(settings_canvas,hist_sensi,ROOT.kGreen+1)
 
-    # Draw settings - food sensitivity
-    hist_ric = ric_histograms.latestHistogram().Clone('hist_ric')
-    AddSettingsHistogram(settings_canvas,hist_ric,ROOT.kRed+1)
+        # Draw settings - food sensitivity
+        hist_ric = ric_histograms.latestHistogram().Clone('hist_ric')
+        AddSettingsHistogram(settings_canvas,hist_ric,ROOT.kRed+1)
 
-    # Draw settings - basal
-    hist_basal = basal_histograms.latestHistogram().Clone('hist_basal')
-    AddSettingsHistogram(settings_canvas,hist_basal,ROOT.kBlue+1)
+        # Draw settings - basal
+        hist_basal = basal_histograms.latestHistogram().Clone('hist_basal')
+        AddSettingsHistogram(settings_canvas,hist_basal,ROOT.kBlue+1)
 
     for can in [settings_canvas,delta_canvas,residual_canvas,prediction_canvas] :
        if not can :
