@@ -1,7 +1,7 @@
 import ROOT
 from array import array
 from TimeClass import MyTime
-from PyBGSuggestHelpers import GetHistWithTimeAxis
+import PlotManagement
 import PlotFunctions as plotfunc
 import TAxisFunctions as taxisfunc
 
@@ -9,7 +9,7 @@ import TAxisFunctions as taxisfunc
 def GetOverview(tree,d1,d2) :
     print 'Getting overview from week %d to week %d'%(d1,d2)
 
-    hist = GetHistWithTimeAxis()
+    hist = PlotManagement.GetHistWithTimeAxis()
     last_week = 0
 
     for i in range(tree.GetEntries()) :

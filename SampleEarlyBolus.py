@@ -1,8 +1,9 @@
 import PlotFunctions as plotfunc
 import TAxisFunctions as taxisfunc
 from TimeClass import MyTime
-from PyBGSuggestHelpers import BGFunction,PredictionPlots,GetIntegratedAverage,GetHistWithTimeAxis
+from PyBGSuggestHelpers import BGFunction,PredictionPlots,GetIntegratedAverage
 import ROOT
+import PlotManagement
 
 def SampleEarlyBolus() :
 
@@ -163,7 +164,7 @@ def SampleEarlyBolus() :
 #         sample_hist.SetAxisLabels('Time','BG')
 
     sample_canvas = ROOT.TCanvas('Reduced_Carbohydrate_Example','Reduced Carbohydrate Example',500,500)
-    plotfunc.AddHistogram(sample_canvas,GetHistWithTimeAxis())
+    plotfunc.AddHistogram(sample_canvas,PlotManagement.GetHistWithTimeAxis())
     for i in tf1sNOASYM :
         plotfunc.AddHistogram(sample_canvas,i,'p')
     taxisfunc.SetYaxisRanges(sample_canvas,40,450)
