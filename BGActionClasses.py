@@ -281,6 +281,7 @@ class Food(BGActionBase) :
 
         # For eventual suggestions
         self.original_value = food
+        self.fattyMeal = False
 
         return
 
@@ -310,16 +311,20 @@ class Food(BGActionBase) :
         if not hasattr(self,'original_value') :
             return
 
-        # If below a certain threshold, do not bother.
-        if self.food > 0 and abs(self.original_value - self.food)/float(self.food) < 0.1 :
-            return
+        if not self.fattyMeal :
+            # If below a certain threshold, do not bother.
+            if self.food > 0 and abs(self.original_value - self.food)/float(self.food) < 0.1 :
+                return
 
-        if abs(self.original_value - self.food) < 5 :
-            return
+            if abs(self.original_value - self.food) < 5 :
+                return
 
-        recommendation = 'Fitted FOOD'
+        recommendation = ''
+        if self.fattyMeal :
+            recommendation += '** '
+        recommendation += 'Fitted FOOD'
         recommendation += ' at %s'%(MyTime.StringFromTime(self.iov_0))
-        recommendation += ' %d grams -> %d grams'%(self.original_value,self.food)
+        recommendation += ' %d -> %d grams'%(self.original_value,self.food)
         if hasattr(self,'Ta') :
             recommendation += ', Ta = %.2f'%(self.Ta)
         print recommendation
@@ -473,9 +478,11 @@ class BasalInsulin(BGEventBase) :
                     bolusSlice = insulin_sensi*bolus_val*(basalFactor-1)
 
                     if c.iov_0 not in fattyEvents.keys() :
-                        # ta is tunable (1.4 works ok for a 6-hr basal)
-                        ta = (c.iov_1 - c.iov_0) * 1.4 / float(MyTime.OneHour)
-                        fattyEvents[c.iov_0] = {'iov_0':c.iov_0,'iov_1':c.iov_1,'BGEffect':bolusSlice,'Ta':ta}
+                        Ta_tempBasal = (c.iov_1 - c.iov_0) / float(MyTime.OneHour)
+                        fattyEvents[c.iov_0] = {'iov_0':c.iov_0,'iov_1':c.iov_1}
+                        fattyEvents[c.iov_0]['BGEffect'] = bolusSlice
+                        fattyEvents[c.iov_0]['Ta_tempBasal'] = Ta_tempBasal
+                        fattyEvents[c.iov_0]['fractionOfBasal'] = basalFactor-1
                     else :
                         fattyEvents[c.iov_0]['BGEffect'] += bolusSlice
 
@@ -486,6 +493,7 @@ class BasalInsulin(BGEventBase) :
                 if c.iov_0 < time_ut and time_ut < c.iov_1 :
                     basalFactor = c.basalFactor
 
+            # Finally, make the mini-bolus for the basal insulin.
             bolus_val *= basalFactor
             minibolus = InsulinBolus(time_ut,bolus_val)
             self.basalBoluses.append(minibolus)
@@ -494,7 +502,7 @@ class BasalInsulin(BGEventBase) :
 
         for k in fattyEvents.keys() :
             fe = fattyEvents[k]
-            fattyEvent = LiverFattyGlucose(fe['iov_0'],fe['iov_1'],fe['BGEffect'],fe['Ta'])
+            fattyEvent = LiverFattyGlucose(fe['iov_0'],fe['iov_1'],fe['BGEffect'],fe['Ta_tempBasal'],fe['fractionOfBasal'])
             fattyEvent.Print()
             containers.append(fattyEvent)
 
@@ -539,7 +547,7 @@ class LiverFattyGlucose(BGActionBase) :
     # is simply "BG Effect". In other words, we will not attempt any tricky transformation
     # to insulin or food or something.
 
-    def __init__(self,time_start,time_end,BGEffect,Ta) :
+    def __init__(self,time_start,time_end,BGEffect,Ta_tempBasal,fractionOfBasal) :
         BGActionBase.__init__(self,time_start,time_end + 6.*MyTime.OneHour)
         self.affectsBG = True
 
@@ -552,9 +560,12 @@ class LiverFattyGlucose(BGActionBase) :
 
         # For eventual suggestions
         self.original_value = BGEffect
+        self.fractionOfBasal = fractionOfBasal
 
         # It also has its own Ta
-        self.Ta = Ta
+        # This is tunable (1.4 works ok for a 6-hr basal)
+        self.Ta_tempBasal = Ta_tempBasal
+        self.Ta = Ta_tempBasal * 1.4
 
         return
 
@@ -604,11 +615,13 @@ class LiverFattyGlucose(BGActionBase) :
             return
 
         Sfood = float(settings.getFoodSensitivity(self.iov_0))
-        recommendation = 'Recommend TEMP BASAL'
+        tempBasal_old = 100*(1 + self.fractionOfBasal)
+        tempBasal_new = 100*(1 + (self.fractionOfBasal * self.BGEffect/float(self.original_value) ) )
+        recommendation = '** Recommend TEMP BASAL'
         recommendation += ' at %s'%(MyTime.StringFromTime(self.iov_0))
-        recommendation += ' %d mgdL -> %d mgdL'%(self.original_value,self.BGEffect)
-        recommendation += ' (%d grams -> %d grams)'%(self.original_value/Sfood,self.BGEffect/Sfood)
-        recommendation += ' (Temp basal = XX for YY hours)'
+        recommendation += ' %d -> %d mgdL'%(self.original_value,self.BGEffect)
+        recommendation += ' (%d -> %d grams)'%(self.original_value/Sfood,self.BGEffect/Sfood)
+        recommendation += ' (%d%% -> %d%% for %.2f hours)'%(tempBasal_old,tempBasal_new,self.Ta_tempBasal)
         print recommendation
         return recommendation
 

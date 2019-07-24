@@ -266,7 +266,7 @@ def BalanceFattyEvents(containers,settings) :
             break
 
         if not bg_before :
-            print 'BalanceFattyEvents: Fat at %s - Cannot find previous measurement -- stopping here.'%(MyTime.StringFromTime(fat.iov_0))
+            print 'BalanceFattyEvents: Fat at %s - Cannot find previous measurement -- stopping here.\n'%(MyTime.StringFromTime(fat.iov_0))
             continue
 
         bg_after = None
@@ -283,11 +283,11 @@ def BalanceFattyEvents(containers,settings) :
             break
 
         if not bg_after :
-            print 'BalanceFattyEvents: Fat at %s - Cannot find next measurement -- stopping here.'%(MyTime.StringFromTime(fat.iov_0))
+            print 'BalanceFattyEvents: Fat at %s - Cannot find next measurement -- stopping here.\n'%(MyTime.StringFromTime(fat.iov_0))
             continue
 
-        # print 'Before- and after- measurements: %s and %s'%(MyTime.StringFromTime(bg_before.iov_0),
-        #                                                     MyTime.StringFromTime(bg_after.iov_0))
+        print 'Fatty Meal Fitter: %s and %s\n'%(MyTime.StringFromTime(bg_before.iov_0),
+                                                MyTime.StringFromTime(bg_after.iov_0))
 
         bgs_inbetween = []
         for c_j in range(containers.index(bg_before)+1,containers.index(bg_after)) :
@@ -305,12 +305,16 @@ def BalanceFattyEvents(containers,settings) :
 
             # FIX -- need to also account for temp basal!
 
-            if not ( fat.iov_0 - food.iov_0 ) < 2*MyTime.OneHour :
-                # < 2 hours before ...
-                continue
+            # if not ( fat.iov_0 - food.iov_0 ) < 2*MyTime.OneHour :
+            #     # < 2 hours before ...
+            #     continue
 
             if not ( food.iov_0 - fat.iov_0 ) < 1.5*MyTime.OneHour :
                 # ... and < 1.5 hour after ...
+                continue
+
+            if ( food.iov_0 - bg_before.iov_0 ) < 0 :
+                # If the food was before the lower-bound BG, do not consider.
                 continue
 
             # print 'Found food item %s %d'%(MyTime.StringFromTime(food.iov_0),food.food)
@@ -319,9 +323,11 @@ def BalanceFattyEvents(containers,settings) :
             if not master_food :
                 master_food = food
                 master_food.Ta = settings.getFoodTa(master_food.iov_0)
+                master_food.fattyMeal = True
             else :
                 master_food.food += food.food
                 food.food = 0
+                food.fattyMeal = True
 
         # construct a single independent variable that trades BGEffect between FattyGlucose and Food
         # [0] = BGSwap, [1] = Ta
