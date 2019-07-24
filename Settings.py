@@ -187,6 +187,13 @@ class TrueUserProfile :
     def getFoodSensitivity(self,time_ut) :
         return self.FoodSensitivity[self.getBin(time_ut)]
 
+    def getFoodSensitivityHrMidnight(self,hr_fromMidnight) :
+        return self.FoodSensitivity[self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)]
+
+    def setFoodSensitivityHrMidnight(self,hr_fromMidnight,val) :
+        print self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)
+        self.FoodSensitivity[self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)] = val
+
     def getInsulinTa(self,time_ut) :
         return self.InsulinTa[self.getBin(time_ut)]
 
@@ -245,16 +252,21 @@ class TrueUserProfile :
         def tmpformat(alist,n=2) :
             return ''.join(('%2.*f'%(n,a)).rjust(6) for a in alist)
 
-        print 'Time                        :   ',(' '*8).join([' 4am','____',' 8am','____','12am','____',
-                                                               ' 4pm','____',' 8pm','____','12pm','____'])
-        print 'InsulinSensitivity (mgdL/u)    : ',tmpformat(self.InsulinSensitivity[0::2],0)
+        print 'Time                           :   ',(' '*8).join([' 4am','____',' 8am','____','12am','____',
+                                                                  ' 4pm','____',' 8pm','____','12pm','____'])
+        print 'InsulinSensitivity Si (mgdL/u) : ',tmpformat(self.InsulinSensitivity[0::2],0)
         print '                                 ',tmpformat(self.InsulinSensitivity[1::2],0)
-        print 'FoodSensitivity (mgdl/g)       : ',tmpformat(self.FoodSensitivity[0::2],1)
+        print 'FoodSensitivity Sf (mgdL/g)    : ',tmpformat(self.FoodSensitivity[0::2],1)
         print '                                 ',tmpformat(self.FoodSensitivity[1::2],1)
+        carb_ratio = list(-self.InsulinSensitivity[i]/float(self.FoodSensitivity[i]) for i in range(self.nBins))
+        print '(Carb ratio Si/Sf) (g/u)       : ',tmpformat(carb_ratio[0::2],0)
+        print '                                 ',tmpformat(carb_ratio[1::2],0)
+
         print 'InsulinTa (hours)              : ',tmpformat(self.InsulinTa[0::2],1)
         print '                                 ',tmpformat(self.InsulinTa[1::2],1)
         print 'FoodTa (hours)                 : ',tmpformat(self.FoodTa[0::2],1)
         print '                                 ',tmpformat(self.FoodTa[1::2],1)
+
         print 'LiverHourlyGlucose (mgdL/hour) : ',tmpformat(self.LiverHourlyGlucose[0::2],0) # on-the-hour
         print '                                 ',tmpformat(self.LiverHourlyGlucose[1::2],0) # 30-minute
         return
