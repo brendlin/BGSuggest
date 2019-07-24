@@ -337,10 +337,6 @@ def DrawEventDetails(containers,start_of_day,can,settings) :
     return
 
 #------------------------------------------------------------------
-def GetMidPad(can) :
-    return can.GetPrimitive('pad_mid')
-
-#------------------------------------------------------------------
 def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     print 'Calculating the prediction from day-of-week %d of %d weeks ago'%(day,weeks_ago)
     import PlotFunctions as plotfunc
@@ -355,15 +351,20 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
                                        ratio_n1=0.17
                                        )
 
+    bg_canvas = plotfunc.GetTopPad(prediction_canvas)
+    delta_canvas = prediction_canvas.GetPrimitive('pad_mid')
+    residual_canvas = plotfunc.GetBotPad(prediction_canvas)
+    settings_canvas = prediction_canvas.GetPrimitive('pad_sub')
+
     week = GetLastWeek(tree)
     week = week - weeks_ago
     
     # Add Time axis histogram to each sub-pad
     time_hist = GetHistWithTimeAxis(nHours)
     plotfunc.AddHistogram(prediction_canvas,time_hist,'')
-    plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),time_hist,'')
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),time_hist,'')
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),time_hist,'')
+    plotfunc.AddHistogram(residual_canvas,time_hist,'')
+    plotfunc.AddHistogram(delta_canvas,time_hist,'')
+    plotfunc.AddHistogram(settings_canvas,time_hist,'')
 
     # Quick function to make target zones
     def MakeErrorBandHistogram(name,min,max,color) :
@@ -381,13 +382,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     bandGreen  = MakeErrorBandHistogram('green',100,150,ROOT.kGreen)
     plotfunc.AddHistogram(prediction_canvas,bandYellow,'E2')
     plotfunc.AddHistogram(prediction_canvas,bandGreen,'E2')
-    plotfunc.GetTopPad(prediction_canvas).RedrawAxis()
+    bg_canvas.RedrawAxis()
 
     # Sensor data (if available)
     sensor_data = GetDataFromDay(tree,'SensorGlucose',day,week)
     sensor_data.SetMarkerSize(0.7)
     if sensor_data.GetN() > 1 :
-        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensor_data,'p')
+        plotfunc.AddHistogram(bg_canvas,sensor_data,'p')
 
     containers = GetDayContainers(tree,week,day,nHours=nHours)
 
@@ -400,7 +401,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
 
     bg_data.SetMarkerColor(ROOT.kRed+1)
     bg_data.SetTitle('remove')
-    plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),bg_data,'p')
+    plotfunc.AddHistogram(bg_canvas,bg_data,'p')
 
     containers.append(LiverBasalGlucose())
 
@@ -464,21 +465,22 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     prediction_plot.SetFillColorAlpha(ROOT.kBlack,0.4)
     prediction_plot.SetLineWidth(2)
     prediction_plot.SetLineStyle(7)
-    plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),prediction_plot,'lE3')
+    plotfunc.AddHistogram(bg_canvas,prediction_plot,'lE3')
 
     #
     # Experimental profile: Make a deep copy of original profile
     #
-    sensiProfile = copy.deepcopy(bwzProfile)
-    for i in range(48) : #[6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11] :
-        sensiProfile.InsulinSensitivity[i] = sensiProfile.InsulinSensitivity[i]*0.8
-    sensiPlot = PredictionPlots(containers,sensiProfile,week,day,nHours=nHours)
-    sensiPlot.SetLineColor(ROOT.kRed)
-    sensiPlot.SetLineWidth(2)
-    sensiPlot.SetTitle("Sensitivity #times 0.8")
+    experimentalProfile = copy.deepcopy(bwzProfile)
+    # Change food from 17h to 22h to 3.4
+    for i in range(17*2,22*2) :
+        experimentalProfile.setFoodSensitivityHrMidnight(i/2.,3.4)
+    experimentalPlot = PredictionPlots(containers,experimentalProfile,week,day,nHours=nHours)
+    experimentalPlot.SetLineColor(ROOT.kRed)
+    experimentalPlot.SetLineWidth(2)
+    experimentalPlot.SetTitle("Experimenatal")
 
-    if False :
-        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),sensiPlot,'lE3')
+    if True :
+        plotfunc.AddHistogram(bg_canvas,experimentalPlot,'lE3')
 
     # Experiment with food uncertainties only
     containers_food = Fitting.MakeFoodDeepCopies(containers)
@@ -489,7 +491,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     food_fit_plot.SetLineWidth(3)
 
     if True :
-        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot,'lE3')
+        plotfunc.AddHistogram(bg_canvas,food_fit_plot,'lE3')
 
     # Continue the experiment! (Re-use the existing modified containers)
     Fitting.BalanceFattyEvents(containers_food,bwzProfile)
@@ -506,38 +508,38 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
             c.PrintSuggestion(bwzProfile)
 
     if True :
-        plotfunc.AddHistogram(plotfunc.GetTopPad(prediction_canvas),food_fit_plot_v2,'lE3')
+        plotfunc.AddHistogram(bg_canvas,food_fit_plot_v2,'lE3')
 
     #
     # Make the food and insulin blobs
     #
     food_plot = GetDeltaBGversusTimePlot('FoodOrLiver',containers,positive_bg_items,bwzProfile,week,day,doStack=True,nHours=nHours)
-    GetMidPad(prediction_canvas).cd()
+    delta_canvas.cd()
     food_plot.Draw('lsame')
     plotfunc.tobject_collector.append(food_plot)
 
     insulin_plot = GetDeltaBGversusTimePlot('BolusOrBasal',containers,negative_bg_items,bwzProfile,week,day,doStack=True,nHours=nHours)
-    GetMidPad(prediction_canvas).cd()
+    delta_canvas.cd()
     insulin_plot.Draw('lsame')
     plotfunc.tobject_collector.append(insulin_plot)
 
     both_plot = GetDeltaBGversusTimePlot('FoodOrBolus',containers,positive_bg_items + negative_bg_items,bwzProfile,week,day,nHours=nHours)
     both_plot.SetLineWidth(2)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),both_plot,'lhist')
+    plotfunc.AddHistogram(delta_canvas,both_plot,'lhist')
 
     basal_schedule_plot = GetDeltaBGversusTimePlot('ScheduledBasal',[basal_schedule],['BasalInsulin'],bwzProfile,week,day,nHours=nHours)
     basal_schedule_plot.SetLineStyle(7)
     basal_schedule_plot.SetLineWidth(2)
-    plotfunc.AddHistogram(GetMidPad(prediction_canvas),basal_schedule_plot,'lhist')
+    plotfunc.AddHistogram(delta_canvas,basal_schedule_plot,'lhist')
 
-    GetMidPad(prediction_canvas).cd()
+    delta_canvas.cd()
     food_fit_delta_v2.Draw('lsame')
     plotfunc.tobject_collector.append(food_fit_delta_v2)
 
     a = ROOT.TLine()
     a.DrawLine(-0.5,0,nHours + 0.5,0)
     plotfunc.tobject_collector.append(a)
-    GetMidPad(prediction_canvas).RedrawAxis()
+    delta_canvas.RedrawAxis()
 
     #
     # Make the residual plots
@@ -547,13 +549,13 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     if sensor_data.GetN() > 1 :
         residual_plot = ComparePredictionToReality(prediction_plot,sensor_data)
         residual_plot.SetMarkerSize(0.5)
-        plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot,'p')
+        plotfunc.AddHistogram(residual_canvas,residual_plot,'p')
 
     # Residual plot for BG data
     residual_plot_2 = ComparePredictionToReality(prediction_plot,bg_data)
     residual_plot_2.SetMarkerSize(0.8)
     residual_plot_2.SetMarkerColor(ROOT.kRed+1)
-    plotfunc.AddHistogram(plotfunc.GetBotPad(prediction_canvas),residual_plot_2,'p')
+    plotfunc.AddHistogram(residual_canvas,residual_plot_2,'p')
 
     for i in prediction_canvas.GetListOfPrimitives() :
         if 'SensorGlucose' in i.GetName() :
@@ -565,35 +567,32 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     plotfunc.SetAxisLabels(prediction_canvas,'hr','BG (mg/dL)')
 
     # Format bottom pad (data - prediction)
-    bot_pad = plotfunc.GetBotPad(prediction_canvas)
-    taxisfunc.SetYaxisRanges(bot_pad,-199,199)
-    taxisfunc.SetXaxisRanges(bot_pad,-0.5,nHours + 0.5)
-    xaxis = bot_pad.GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis()
+    taxisfunc.SetYaxisRanges(residual_canvas,-199,199)
+    taxisfunc.SetXaxisRanges(residual_canvas,-0.5,nHours + 0.5)
+    xaxis = residual_canvas.GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis()
     xaxis.SetLabelOffset(.04)
     xaxis.SetTitleOffset(2.8)
-    plotfunc.SetAxisLabels(bot_pad,'hr','data^{ }#minus^{ }pred')
+    plotfunc.SetAxisLabels(residual_canvas,'hr','data^{ }#minus^{ }pred')
 
     # Format middle pad (the lumps)
-    mid_pad = GetMidPad(prediction_canvas)
-    taxisfunc.SetYaxisRanges(mid_pad,-199,199)
-    taxisfunc.SetXaxisRanges(mid_pad,-0.5,nHours + 0.5)
-    taxisfunc.SetYaxisNdivisions(mid_pad,5,5,0)
-    xaxis = GetMidPad(prediction_canvas).GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis()
+    taxisfunc.SetYaxisRanges(delta_canvas,-199,199)
+    taxisfunc.SetXaxisRanges(delta_canvas,-0.5,nHours + 0.5)
+    taxisfunc.SetYaxisNdivisions(delta_canvas,5,5,0)
+    xaxis = delta_canvas.GetPrimitive('pad_mid_HistWithTimeAxis').GetXaxis()
     xaxis.SetLabelOffset(5)
-    plotfunc.SetAxisLabels(mid_pad,'','#Delta^{}BG^{ }/^{ }hr')
+    plotfunc.SetAxisLabels(delta_canvas,'','#Delta^{}BG^{ }/^{ }hr')
 
     # Draw the container details
     start_of_plot_day = MyTime.WeekDayHourToUniversal(week,day,0)
-    DrawEventDetails(containers,start_of_plot_day,mid_pad,bwzProfile)
+    DrawEventDetails(containers,start_of_plot_day,delta_canvas,bwzProfile)
 
     # Format sub-pad (the settings)
-    sub_pad = prediction_canvas.GetPrimitive('pad_sub')
-    plotfunc.FormatCanvasAxes(sub_pad)
-    taxisfunc.SetYaxisRanges(sub_pad,0.001,90)
-    plotfunc.SetAxisLabels(sub_pad,'','Settings')
-    xaxis = sub_pad.GetPrimitive('pad_sub_HistWithTimeAxis').GetXaxis()
+    plotfunc.FormatCanvasAxes(settings_canvas)
+    taxisfunc.SetYaxisRanges(settings_canvas,0.001,90)
+    plotfunc.SetAxisLabels(settings_canvas,'','Settings')
+    xaxis = settings_canvas.GetPrimitive('pad_sub_HistWithTimeAxis').GetXaxis()
     xaxis.SetLabelOffset(10)
-    taxisfunc.SetYaxisNdivisions(sub_pad,5,2,0)
+    taxisfunc.SetYaxisNdivisions(settings_canvas,5,2,0)
 
     #
     # Draw the date.
@@ -612,9 +611,9 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     hist_sensi.SetName('hist_sensi')
     hist_sensi.SetMarkerColor(ROOT.kGreen+1)
     hist_sensi.SetMarkerSize(0.2)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'p')
+    plotfunc.AddHistogram(settings_canvas,hist_sensi,'p')
     hist_sensi.SetMarkerSize(6)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_sensi,'text45')
+    plotfunc.AddHistogram(settings_canvas,hist_sensi,'text45')
 
     #
     # Draw settings - food sensitivity
@@ -623,9 +622,9 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     hist_ric.SetName('hist_ric')
     hist_ric.SetMarkerColor(ROOT.kRed+1)
     hist_ric.SetMarkerSize(0.2)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_ric,'p')
+    plotfunc.AddHistogram(settings_canvas,hist_ric,'p')
     hist_ric.SetMarkerSize(6)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_ric,'text45')
+    plotfunc.AddHistogram(settings_canvas,hist_ric,'text45')
 
     #
     # Draw settings - basal
@@ -634,14 +633,14 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     hist_basal.SetName('hist_basal')
     hist_basal.SetMarkerColor(ROOT.kBlue+1)
     hist_basal.SetMarkerSize(0.2)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basal,'p')
+    plotfunc.AddHistogram(settings_canvas,hist_basal,'p')
     hist_basal.SetMarkerSize(6)
-    plotfunc.AddHistogram(prediction_canvas.GetPrimitive('pad_sub'),hist_basal,'text45')
+    plotfunc.AddHistogram(settings_canvas,hist_basal,'text45')
 
-    prediction_canvas.GetPrimitive('pad_sub').Modified()
-    prediction_canvas.GetPrimitive('pad_sub').Update()
-    GetMidPad(prediction_canvas).Modified()
-    GetMidPad(prediction_canvas).Update()
+    settings_canvas.Modified()
+    settings_canvas.Update()
+    delta_canvas.Modified()
+    delta_canvas.Update()
     prediction_canvas.Modified()
     prediction_canvas.Update()
 
@@ -649,7 +648,7 @@ def PredictionCanvas(tree,day,weeks_ago=0,rootfile=0) :
     bwzProfile.Print()
 
     print '\nNew profile:'
-    sensiProfile.Print()
+    experimentalProfile.Print()
 
     return prediction_canvas
 
