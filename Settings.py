@@ -191,7 +191,6 @@ class TrueUserProfile :
         return self.FoodSensitivity[self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)]
 
     def setFoodSensitivityHrMidnight(self,hr_fromMidnight,val) :
-        print self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)
         self.FoodSensitivity[self.getBinFromHourOfDayFromMidnight(hr_fromMidnight)] = val
 
     def getInsulinTa(self,time_ut) :
