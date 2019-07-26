@@ -113,6 +113,17 @@ def FormatDeltaCanvas(delta_canvas,nHours=24) :
     return
 
 #------------------------------------------------------------------
+def GetColor(classname) :
+    return {'InsulinBolus':ROOT.kGreen+1,
+            'Food':ROOT.kRed+1,
+            'LiverBasalGlucose':ROOT.kOrange,
+            'BasalInsulin':ROOT.kAzure-9,
+            'LiverFattyGlucose':ROOT.kMagenta,
+            'ExerciseEffect':ROOT.kBlue,
+            'SquareWaveBolus':ROOT.kCyan+1,
+            }.get(classname)
+
+#------------------------------------------------------------------
 def FormatThreePadCanvas(prediction_canvas,nHours=24) :
 
     bg_canvas = plotfunc.GetTopPad(prediction_canvas)

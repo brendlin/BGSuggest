@@ -155,20 +155,25 @@ def MinimizeChi2(c,containers,settings) :
 
     bounds = {
         'Food'             :([0],[250]),
-        'LiverFattyGlucose':([0],[500]),
+        'LiverFattyGlucose':([0],[1000]),
         }.get(classname)
 
     list_of_timestamps = [[c.iov_0,itype]]
 
-    res_lsq = least_squares(CalculateResidual, x0, args=(containers,settings,list_of_timestamps),
-                            bounds=bounds)
+    try :
+        res_lsq = least_squares(CalculateResidual, x0, args=(containers,settings,list_of_timestamps),
+                                bounds=bounds)
+    except ValueError :
+        return False
 
-    return
+    return True
 
 #------------------------------------------------------------------
 def MinimizeAllChi2(containers,settings) :
     # Go through food-item-by-food-item and wiggle it until it fits the data.
     # Also consider liver fatty glucose.
+
+    status_code = True
 
     # Do fatty stuff first!
     for c in containers :
@@ -176,7 +181,7 @@ def MinimizeAllChi2(containers,settings) :
         if not c.IsLiverFattyGlucose() :
             continue
 
-        MinimizeChi2(c,containers,settings)
+        status_code = status_code and MinimizeChi2(c,containers,settings)
 
     # Should be ordered by time
     for c in containers :
@@ -184,9 +189,9 @@ def MinimizeAllChi2(containers,settings) :
         if not c.IsFood() and not c.IsLiverFattyGlucose() :
             continue
 
-        MinimizeChi2(c,containers,settings)
+        status_code = status_code and MinimizeChi2(c,containers,settings)
 
-    return None
+    return status_code
 
 #------------------------------------------------------------------
 def CalculateResidualFoodFatAntiCorrelated(x,fat,food,bg0,bg1,bgs_inbetween,containers,settings) :
@@ -240,6 +245,8 @@ def CalculateResidualFoodFatAntiCorrelated(x,fat,food,bg0,bg1,bgs_inbetween,cont
 
 #------------------------------------------------------------------
 def BalanceFattyEvents(containers,settings) :
+
+    status_code = True
 
     for c_i in range(len(containers)) :
 
@@ -349,13 +356,17 @@ def BalanceFattyEvents(containers,settings) :
 
         # Run solve.
         from scipy.optimize import least_squares
-        res_lsq = least_squares(CalculateResidualFoodFatAntiCorrelated, x0,
-                                args=(fat,master_food,bg_before,bg_after,bgs_inbetween,containers,settings),
-                                bounds=bounds)
+
+        try :
+            res_lsq = least_squares(CalculateResidualFoodFatAntiCorrelated, x0,
+                                    args=(fat,master_food,bg_before,bg_after,bgs_inbetween,containers,settings),
+                                    bounds=bounds)
+        except ValueError :
+            status_code = False
 
         # Set the results to the best-fit
         BGSwap = res_lsq.x[0]
         fat.AddBGEffect(        bg_before.iov_0,bg_after.iov_0,settings, BGSwap)
         master_food.AddBGEffect(bg_before.iov_0,bg_after.iov_0,settings,-BGSwap)
 
-    return
+    return status_code

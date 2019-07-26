@@ -89,6 +89,10 @@ def ProcessFileJSON(inputfilename,treeDetailed,sDetailed,
         if itype == 'pumpSettings' :
             timestamp = line['deviceTime']
 
+            # Some entries are incomplete (and wrong for some reason - avoid these).
+            if not 'basal' in line.keys() :
+                continue
+
             duration = line["bolus"]["calculator"]["insulin"]["duration"]
             if not duration_histograms.hist_list :
                 # There is only one per day.
