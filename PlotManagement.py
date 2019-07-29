@@ -86,14 +86,28 @@ def FormatBGCanvas(prediction_canvas,nHours=24) :
     time_hist = GetHistWithTimeAxis(nHours)
     plotfunc.AddHistogram(prediction_canvas,time_hist,'')
 
+    xline = 4
+    while xline < nHours :
+        a = ROOT.TLine(xline,0.001,xline,350)
+        a.SetLineColor(ROOT.kGray)
+        a.Draw()
+        plotfunc.tobject_collector.append(a)
+        xline += 4
+
+    print plotfunc.tobject_collector
+
     # Prediction canvas
     plotfunc.FormatCanvasAxes(prediction_canvas)
+    plotfunc.SetLeftMargin(prediction_canvas,0.10)
+    taxisfunc.SetYaxisProperty(prediction_canvas,'SetTitleOffset',1.10)
     taxisfunc.SetYaxisRanges(prediction_canvas,0.001,350)
     plotfunc.SetAxisLabels(prediction_canvas,'hr','BG (mg/dL)')
+    plotfunc.SetRightMargin(prediction_canvas,0.21)
 
     # Green and yellow target zones
     AddErrorBandHistogram(prediction_canvas,'yellow',80,180,ROOT.kOrange,nHours)
     AddErrorBandHistogram(prediction_canvas,'green',100,150,ROOT.kGreen,nHours)
+
 
     return
 
@@ -103,11 +117,19 @@ def FormatDeltaCanvas(delta_canvas,nHours=24) :
     time_hist = GetHistWithTimeAxis(nHours)
     plotfunc.AddHistogram(delta_canvas,time_hist,'')
 
+    xline = 4
+    while xline < nHours :
+        a = ROOT.TLine(xline,-299,xline,299)
+        a.SetLineColor(ROOT.kGray)
+        a.Draw()
+        plotfunc.tobject_collector.append(a)
+        xline += 4
+
     taxisfunc.SetYaxisRanges(delta_canvas,-299,299)
     taxisfunc.SetXaxisRanges(delta_canvas,-0.5,nHours + 0.5)
     taxisfunc.SetYaxisNdivisions(delta_canvas,5,5,0)
-    xaxis = delta_canvas.GetPrimitive('pad_bot_HistWithTimeAxis').GetXaxis()
-    xaxis.SetLabelOffset(0.02)
+    taxisfunc.SetYaxisProperty(delta_canvas,'SetTitleOffset',1.10)
+    taxisfunc.SetXaxisProperty(delta_canvas,'SetLabelOffset',0.02)
     plotfunc.SetAxisLabels(delta_canvas,'','#Delta^{}BG^{ }/^{ }hr')
 
     return

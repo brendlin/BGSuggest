@@ -336,6 +336,10 @@ def BalanceFattyEvents(containers,settings) :
                 food.food = 0
                 food.fattyMeal = True
 
+        if not master_food :
+            print 'BalanceFattyEvents: No food found! Skipping.'
+            continue
+
         # construct a single independent variable that trades BGEffect between FattyGlucose and Food
         # [0] = BGSwap, [1] = Ta
         BGSwap = 0
